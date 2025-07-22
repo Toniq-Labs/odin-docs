@@ -1,0 +1,121 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Odin",
+  "colors": {
+    "primary": "#3c3c4d",
+    "light": "#00a3a3",
+    "dark": "#00ffff"
+  },
+  "favicon": "/assets/favicon.ico",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Overview",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "welcome"
+            ]
+          },
+          {
+            "group": "Quick Start Guide",
+            "pages": [
+              "quickstart/quickstart-01-prepare",
+              "quickstart/quickstart-02-siwb-login",
+              "quickstart/quickstart-03-login-odin",
+              "quickstart/quickstart-04-canister-calls"
+            ]
+          },
+          
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/sample-wallet"
+            ]
+          }
+        ]
+      
+      },
+    {
+      "tab": "API Reference",
+      "groups": [
+        {
+          "group": "Overview",
+          "pages": [
+            "api-reference/overview"
+          ]
+          },
+        {
+          "group": "Endpoints",
+          "openapi": {
+            "source": "/assets/openapi.json",
+            "directory": "api-reference"
+          }
+        }
+      ]
+    }
+  ],
+   
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Community",
+          "href": "https://discord.gg/Qxsq4Kqw",
+          "icon": "discord"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/assets/light.svg",
+    "dark": "/assets/dark.svg"
+  },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    },
+    "mdx": {
+      "server": "https://api.odin.fun/v1",
+      "auth": {
+        "method": "bearer"
+      }
+    }
+  },  
+  "servers": [
+    {
+        "url": "https://api.odin.fun/v1",
+        "description": "Production"
+      },
+      {
+        "url": "https://api.odin.fun/v1/dev",
+        "description": "Development"
+      }
+    ],
+  
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "https://discord.gg/Qxsq4Kqw"
+      }
+    ]
+  },
+  "search": {
+    "prompt": "Search Odin documentation..."
+  },
+  "seo": {
+    "indexing": "navigable"
+  },
+  "footer": {
+    "socials": {
+      "discord": "https://discord.gg/Qxsq4Kqw"
+    }
+  },
+  "integrations": {
+    "gtm": {
+      "tagId": "GTM-XXXXXXX"
+    }
+  }
+}

@@ -426,6 +426,66 @@
         ]
       }
     },
+    "/token/{id}/image": {
+      "post": {
+        "operationId": "TokenController_updateImage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenEntity"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Tokens"
+        ]
+      },
+      "get": {
+        "operationId": "TokenController_getImage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary",
+                  "description": "Image stream"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tokens"
+        ]
+      }
+    },
     "/token/{id}": {
       "get": {
         "operationId": "TokenController_findOne",
@@ -1113,7 +1173,7 @@
             "in": "query",
             "description": "JS Date String ( ISO String or UNIX time )",
             "schema": {
-              "example": "2025-07-16T18:37:16.613Z",
+              "example": "2025-07-22T15:46:50.166Z",
               "type": "string"
             }
           },
@@ -1123,7 +1183,7 @@
             "in": "query",
             "description": "JS Date String ( ISO String or UNIX time )",
             "schema": {
-              "example": "1752691036613",
+              "example": "1753199210167",
               "type": "string"
             }
           },
@@ -1158,38 +1218,6 @@
                 }
               }
             }
-          }
-        },
-        "tags": [
-          "Tokens"
-        ]
-      }
-    },
-    "/token/{id}/image": {
-      "get": {
-        "operationId": "TokenController_getImage",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "content": {
-              "image/*": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary",
-                  "description": "Image stream"
-                }
-              }
-            },
-            "description": ""
           }
         },
         "tags": [
@@ -1467,6 +1495,14 @@
       "delete": {
         "operationId": "TokenController_removeUpvote",
         "parameters": [
+          {
+            "name": "tokenId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "id",
             "required": true,
@@ -5163,7 +5199,7 @@
           {
             "name": "format",
             "required": false,
-            "in": "path",
+            "in": "query",
             "description": "Format of the Snapshot",
             "schema": {
               "type": "string",
@@ -6530,8 +6566,7 @@
         ]
       },
       "ActivityAction": {
-        "type": "number",
-        "enum": []
+        "type": "number"
       },
       "UserActivityTokenEntity": {
         "type": "object",
@@ -7126,34 +7161,34 @@
         "type": "object",
         "properties": {
           "avalanche": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "base_network": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "bitcoin": {
             "type": "string"
           },
           "destination_tags": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "ethereum": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "polygon": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "solana": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "stellar": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           }
         },
@@ -7172,7 +7207,7 @@
         "type": "object",
         "properties": {
           "destination_amount": {
-            "type": "null",
+            "type": "number",
             "nullable": true
           },
           "destination_currencies": {
@@ -7194,26 +7229,26 @@
             }
           },
           "fees": {
-            "type": "null",
+            "type": "number",
             "nullable": true
           },
           "lock_wallet_address": {
             "type": "boolean"
           },
           "source_amount": {
-            "type": "null",
+            "type": "number",
             "nullable": true
           },
           "source_currency": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "transaction_id": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "wallet_address": {
-            "type": "null",
+            "type": "string",
             "nullable": true
           },
           "wallet_addresses": {
