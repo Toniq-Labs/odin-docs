@@ -1,0 +1,97 @@
+---
+title: "token_withdraw"
+description: "Withdraw tokens to external addresses"
+---
+
+# token_withdraw
+
+Withdraw tokens to external blockchain addresses using different protocols.
+
+## Method Signature
+
+```typescript
+token_withdraw: ActorMethod<[WithdrawRequest], WithdrawResponse>
+```
+
+## Parameters
+
+### WithdrawRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `protocol` | `WithdrawProtocol` | Yes | Withdrawal protocol to use |
+| `tokenid` | `string` | Yes | The token identifier to withdraw |
+| `address` | `string` | Yes | Destination address for the withdrawal |
+| `amount` | `TokenAmount` | Yes | Amount of tokens to withdraw (bigint) |
+
+### WithdrawProtocol
+```typescript
+type WithdrawProtocol = { btc: null } | { ckbtc: null } | { volt: null }
+```
+
+Available protocols:
+- **btc**: Withdraw to Bitcoin network
+- **ckbtc**: Withdraw to Chain-key Bitcoin (ckBTC) 
+- **volt**: Withdraw using Volt protocol
+
+## Response
+
+### WithdrawResponse
+```typescript
+type WithdrawResponse = { ok: boolean } | { err: string }
+```
+
+- **Success**: `{ ok: boolean }` - Withdrawal initiated, boolean indicates status
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Withdraw to Bitcoin
+```typescript
+const withdrawRequest = {
+  protocol: { btc: null },
+  tokenid: "token123",
+  address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", // Bitcoin address
+  amount: 1000000000n // Token amount
+};
+
+const result = await actor.token_withdraw(withdrawRequest);
+```
+
+### Withdraw using ckBTC
+```typescript
+const withdrawRequest = {
+  protocol: { ckbtc: null },
+  tokenid: "token123", 
+  address: "ckbtc-recipient-principal",
+  amount: 500000000n
+};
+
+const result = await actor.token_withdraw(withdrawRequest);
+```
+
+### Withdraw using Volt
+```typescript
+const withdrawRequest = {
+  protocol: { volt: null },
+  tokenid: "token123",
+  address: "volt-compatible-address",
+  amount: 250000000n
+};
+
+const result = await actor.token_withdraw(withdrawRequest);
+
+if ('ok' in result) {
+  console.log("Withdrawal initiated:", result.ok);
+} else {
+  console.error("Withdrawal failed:", result.err);
+}
+```
+
+## Common Errors
+
+- **Insufficient balance**: Not enough tokens for withdrawal
+- **Invalid address**: Destination address is invalid for the selected protocol
+- **Protocol not supported**: Token doesn't support the selected withdrawal protocol
+- **Minimum amount**: Withdrawal amount below minimum threshold
+- **Network congestion**: Temporary network issues preventing withdrawal 

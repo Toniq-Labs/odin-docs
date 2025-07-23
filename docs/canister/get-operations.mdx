@@ -1,0 +1,140 @@
+---
+title: "getOperations"
+description: "Retrieve multiple operations with pagination"
+---
+
+# getOperations
+
+Retrieve a paginated list of operations from the canister. This is a query method that doesn't modify state.
+
+## Method Signature
+
+```typescript
+getOperations: ActorMethod<[bigint, bigint], Array<OperationAndId>>
+```
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `offset` | `bigint` | Yes | Starting index for pagination (0-based) |
+| `limit` | `bigint` | Yes | Maximum number of operations to return |
+
+## Response
+
+Returns an array of `OperationAndId` objects:
+
+```typescript
+interface OperationAndId {
+  id: bigint;
+  operation: Operation;
+}
+
+interface Operation {
+  time: Time; // bigint timestamp
+  typeof: OperationType;
+}
+```
+
+### OperationType
+
+Operations can be one of several types:
+
+```typescript
+type OperationType = 
+  | { access: { user: string } }
+  | { token: { tokenid: TokenID, deltas: Array<Delta> } }
+  | { trade: TradeOperation }
+  | { other: { data: Metadata, name: string } }
+  | { mint: { tokenid: TokenID, data: Metadata } }
+  | { transaction: TransactionOperation }
+```
+
+### TradeOperation
+```typescript
+interface TradeOperation {
+  amount_token: TokenAmount;
+  tokenid: TokenID;
+  user: string;
+  typeof: TradeType; // { buy: null } | { sell: null }
+  bonded: boolean;
+  amount_btc: TokenAmount;
+  price: TokenAmount;
+}
+```
+
+### TransactionOperation
+```typescript
+interface TransactionOperation {
+  tokenid: TokenID;
+  balance: TokenAmount;
+  metadata: Metadata;
+  user: string;
+  typeof: { add: null } | { sub: null };
+  description: string;
+  amount: TokenAmount;
+}
+```
+
+## Example Usage
+
+### Basic Pagination
+```typescript
+// Get first 10 operations
+const operations = await actor.getOperations(0n, 10n);
+
+console.log(`Retrieved ${operations.length} operations`);
+operations.forEach(op => {
+  console.log(`Operation ${op.id}:`, op.operation);
+});
+```
+
+### Paginate Through All Operations
+```typescript
+async function getAllOperations() {
+  const limit = 100n;
+  let offset = 0n;
+  let allOperations = [];
+  
+  while (true) {
+    const batch = await actor.getOperations(offset, limit);
+    
+    if (batch.length === 0) break; // No more operations
+    
+    allOperations.push(...batch);
+    offset += BigInt(batch.length);
+    
+    if (batch.length < limit) break; // Last batch
+  }
+  
+  return allOperations;
+}
+```
+
+### Filter Operations by Type
+```typescript
+const operations = await actor.getOperations(0n, 100n);
+
+// Filter trade operations
+const tradeOps = operations.filter(op => 'trade' in op.operation.typeof);
+
+// Filter token operations  
+const tokenOps = operations.filter(op => 'token' in op.operation.typeof);
+
+// Filter by specific user
+const userOps = operations.filter(op => {
+  const opType = op.operation.typeof;
+  if ('trade' in opType) {
+    return opType.trade.user === "specific-user-id";
+  }
+  return false;
+});
+```
+
+## Query Method
+
+This is a **query method**, meaning:
+- It doesn't modify canister state
+- It's faster and cheaper to call
+- Results are not certified (for certified data, use update calls)
+- Can be called without authentication in some cases 

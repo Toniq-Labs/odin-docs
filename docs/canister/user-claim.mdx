@@ -1,0 +1,47 @@
+---
+title: "user_claim"
+description: "Claim tokens for the authenticated user"
+---
+
+# user_claim
+
+Claim available tokens for the authenticated user. This method allows users to claim tokens that they are entitled to.
+
+## Method Signature
+
+```typescript
+user_claim: ActorMethod<[], TokenAmount>
+```
+
+## Parameters
+
+This method takes no parameters - it automatically claims tokens for the authenticated caller.
+
+## Response
+
+Returns a `TokenAmount` (bigint) representing the amount of tokens claimed.
+
+```typescript
+type TokenAmount = bigint
+```
+
+The returned value indicates:
+- **Positive number**: Amount of tokens successfully claimed
+- **Zero (0n)**: No tokens available to claim
+
+## Example Usage
+
+### Basic Claim
+```typescript
+try {
+  const claimedAmount = await actor.user_claim();
+  
+  if (claimedAmount > 0n) {
+    console.log(`Successfully claimed ${claimedAmount} tokens`);
+  } else {
+    console.log("No tokens available to claim");
+  }
+} catch (error) {
+  console.error("Failed to claim tokens:", error);
+}
+```

@@ -1,0 +1,48 @@
+---
+title: "Canister Overview"
+description: "Overview of the Odin smart contract (canister) methods and functionality"
+---
+
+# Odin Canister
+
+The Odin canister is a smart contract deployed on the Internet Computer that provides core functionality for token trading, transfers, operations tracking, and user claims.
+
+## Available Methods
+
+This documentation covers the following canister methods:
+
+### Trading
+- **token_trade** - Execute buy/sell trades for tokens
+
+### Transfers
+- **token_transfer** - Transfer tokens between users
+- **token_withdraw** - Withdraw tokens to external addresses
+
+### Operations
+- **getOperations** - Retrieve multiple operations with pagination
+- **getOperation** - Retrieve a specific operation by ID
+
+### User
+- **user_claim** - Claim tokens for the authenticated user
+
+## Method Types
+
+All canister methods return results in a standardized format:
+- **Success**: `{ ok: result }` where result contains the expected data
+- **Error**: `{ err: string }` where string contains the error message
+
+## Common Types
+
+### TokenID
+A string identifier for tokens.
+
+### TokenAmount
+A bigint representing token amounts (typically in the smallest unit).
+
+```js
+  const userAmount = 10_000; // tokens
+  const amount = BigInt(userAmount * 10 ** (token.divisibility + token.decimals));
+```
+
+### Principal
+An Internet Computer principal identifier representing users or canisters. 

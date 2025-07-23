@@ -55,6 +55,43 @@
           }
         }
       ]
+    },
+    {
+      "tab": "Canister",
+      "groups": [
+        {
+          "group": "Overview",
+          "pages": [
+            "canister/overview"
+          ]
+        },
+        {
+          "group": "Trading",
+          "pages": [
+            "canister/token-trade"
+          ]
+        },
+        {
+          "group": "Transfers",
+          "pages": [
+            "canister/token-transfer",
+            "canister/token-withdraw"
+          ]
+        },
+        {
+          "group": "Operations",
+          "pages": [
+            "canister/get-operations",
+            "canister/get-operation"
+          ]
+        },
+        {
+          "group": "User",
+          "pages": [
+            "canister/user-claim"
+          ]
+        }
+      ]
     }
   ],
    

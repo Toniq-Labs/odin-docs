@@ -1,0 +1,112 @@
+---
+title: "token_trade"
+description: "Execute buy or sell trades for tokens"
+---
+
+# token_trade
+
+Execute buy or sell trades for tokens on the Odin platform.
+
+## Method Signature
+
+```typescript
+token_trade: ActorMethod<[TradeRequest], TradeResponse>
+```
+
+## Parameters
+
+### TradeRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenid` | `string` | Yes | The token identifier to trade |
+| `typeof` | `TradeType` | Yes | Trade type: `{ buy: null }` or `{ sell: null }` |
+| `amount` | `TradeAmount` | Yes | Amount to trade (either BTC or token amount) |
+| `settings` | `TradeSettings` | No | Optional trade settings including slippage |
+
+### TradeType
+```typescript
+type TradeType = { buy: null } | { sell: null }
+```
+
+### TradeAmount
+```typescript
+type TradeAmount = { btc: TokenAmount } | { token: TokenAmount }
+```
+- **btc**: Amount in BTC (when buying tokens)
+- **token**: Amount in tokens (when selling tokens)
+
+### TradeSettings (Optional)
+```typescript
+interface TradeSettings {
+  slippage: [[TokenAmount, bigint]] | []  // Optional slippage tolerance
+}
+```
+
+## Response
+
+### TradeResponse
+```typescript
+type TradeResponse = { ok: null } | { err: string }
+```
+
+- **Success**: `{ ok: null }` - Trade executed successfully
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Buy Tokens with BTC
+```typescript
+const buyRequest = {
+  tokenid: "2kl9",
+  typeof: { buy: null },
+  amount: { btc: 19771231n }, // msats
+  settings: []
+};
+
+const result = await actor.token_trade(buyRequest);
+```
+
+### Sell Tokens for BTC
+```typescript
+const sellRequest = {
+  tokenid: "2kl9", 
+  typeof: { sell: null },
+  amount: { token: 1139903820n }, // Token amount
+  settings: []
+};
+
+const result = await actor.token_trade(sellRequest);
+```
+
+### With Slippage Settings
+```typescript
+ const userSlippage = 0.002; // 2 %
+ const priceImpact = getPriceImpact(
+  currency,
+  amount,
+  token,
+);
+
+const allowedSlippage = priceImpact
+  ? (priceImpact ?? 0) + priceImpact
+  : null;
+
+let slippage: any = [];
+if (expectedPrice && allowedSlippage !== null) {
+  slippage = [
+    [expectedPrice, BigInt(Math.floor(allowedSlippage * 100000))],
+  ];
+}
+
+const tradeRequest = {
+  tokenid: "2kl9",
+  typeof: { buy: null },
+  amount: { btc: 1000000n },
+  settings: [{
+    slippage
+  }]
+};
+
+const result = await actor.token_trade(tradeRequest);
+``` 

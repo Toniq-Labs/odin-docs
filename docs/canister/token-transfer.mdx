@@ -1,0 +1,59 @@
+---
+title: "token_transfer"
+description: "Transfer tokens between users"
+---
+
+# token_transfer
+
+Transfer tokens from the authenticated user to another user.
+
+## Method Signature
+
+```typescript
+token_transfer: ActorMethod<[TransferRequest], TransferResponse>
+```
+
+## Parameters
+
+### TransferRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `to` | `string` | Yes | The recipient's address or principal |
+| `tokenid` | `string` | Yes | The token identifier to transfer |
+| `amount` | `TokenAmount` | Yes | Amount of tokens to transfer (bigint) |
+
+## Response
+
+### TransferResponse
+```typescript
+type TransferResponse = { ok: null } | { err: string }
+```
+
+- **Success**: `{ ok: null }` - Transfer completed successfully
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+```typescript
+const transferRequest = {
+  to: "recipient-principal",
+  tokenid: "token123",
+  amount: 1000000000n // Token amount in smallest unit
+};
+
+const result = await actor.token_transfer(transferRequest);
+
+if ('ok' in result) {
+  console.log("Transfer successful");
+} else {
+  console.error("Transfer failed:", result.err);
+}
+```
+
+## Common Errors
+
+- **Insufficient balance**: Not enough tokens in sender's account
+- **Invalid recipient**: Recipient address/principal is invalid
+- **Token not found**: Specified token ID doesn't exist
+- **Transfer blocked**: Token transfers may be restricted 
