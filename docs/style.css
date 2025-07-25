@@ -1,0 +1,7 @@
+button[data-testid="copy-code-button"] ~ div {
+  color: black;
+}
+
+button[id="ask-ai-code-block-button"] ~ div {
+  color: black;
+}
