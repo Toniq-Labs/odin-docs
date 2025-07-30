@@ -32,7 +32,8 @@
           {
             "group": "Examples",
             "pages": [
-              "examples/sample-wallet"
+              "examples/sample-wallet",
+              "examples/price-impact"
             ]
           }
         ]
