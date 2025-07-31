@@ -16,6 +16,8 @@ By the end of this step, you'll have:
 - ✅ Calculated price impact for trades
 - ✅ Implemented risk assessment logic
 - ✅ Executed your first token purchase
+- ✅ Implemented slippage protection for safer trading
+- ✅ Learned best practices for trade configuration
 
 ## Understanding Token Trading
 
@@ -79,7 +81,7 @@ import { authenticateCallback } from './core/auth-callback';
 import { getActor } from './utils/odin';
 import { Token } from './types/token';
 import { getPriceImpact } from './utils/getPriceImpact';
-import { TradeRequest } from './types/odin';
+import { TradeRequest, TradeSettings } from './types/odin';
 
 const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for prod
 
@@ -142,7 +144,11 @@ const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for 
 
   const percentageImpact = priceImpact * 100;
 
-  // Step 4: Risk assessment
+    // Step 4: Risk assessment
+  if (percentageImpact > 10) {
+    throw new Error('Price impact is too high');
+  }
+
   const warningLevel = percentageImpact > 10 ? "⚠️ High" : 
                         percentageImpact > 5 ? "⚡ Medium" : 
                         "✅ Low";
@@ -164,7 +170,35 @@ const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for 
 
   console.log('✅ Token purchase completed successfully!');
   console.log(`Purchased ${tokenToBuy.name} tokens with ${amountToBuyBtc} BTC`);
+
+  // Step 6: Advanced trading with slippage protection
+  const userSlippage = 0.5; // 5%
+  const expectedPrice = tokenToBuy.price;
+  const allowedSlippage = userSlippage
+  ? (priceImpact ?? 0) + userSlippage
+  : null;
+
+  let slippage: any = [];
+  if (expectedPrice && allowedSlippage !== null) {
+    slippage = [
+      [expectedPrice, BigInt(Math.floor(allowedSlippage * 100000))],
+    ];
+  }
+
+  const buyRequestWithSlippage: TradeRequest = {
+    tokenid: tokenToBuy.id,
+    typeof: { buy: null },
+    amount: { btc: amountToBuy },
+    settings: [{slippage}],
+  };
   
+  const buyResultWithSlippage = await odin.token_trade(buyRequestWithSlippage);
+  if ('err' in buyResultWithSlippage) {
+    throw new Error(buyResultWithSlippage.err);
+  }
+
+  console.log('\n\n✅ Token purchase completed successfully with slippage protection!');
+  console.log(`Purchased ${tokenToBuy.name} tokens with ${amountToBuyBtc} BTC with slippage protection`);
 })();
 ```
 
@@ -190,6 +224,9 @@ const percentageImpact = priceImpact * 100;
 ### 3. Risk Assessment
 ```typescript
 // Implement safety checks before executing trades
+if (percentageImpact > 10) {
+  throw new Error('Price impact is too high');
+}
 
 const warningLevel = percentageImpact > 10 ? "⚠️ High" : 
                       percentageImpact > 5 ? "⚡ Medium" : 
@@ -210,6 +247,32 @@ const buyRequest: TradeRequest = {
 const buyResult = await odin.token_trade(buyRequest);
 ```
 
+### 5. Slippage Protection
+```typescript
+// Configure slippage protection
+const userSlippage = 0.5; // 5% user-defined slippage
+const expectedPrice = tokenToBuy.price;
+const allowedSlippage = userSlippage
+  ? (priceImpact ?? 0) + userSlippage
+  : null;
+
+// Create slippage settings
+let slippage: any = [];
+if (expectedPrice && allowedSlippage !== null) {
+  slippage = [
+    [expectedPrice, BigInt(Math.floor(allowedSlippage * 100000))],
+  ];
+}
+
+// Execute trade with slippage protection
+const buyRequestWithSlippage: TradeRequest = {
+  tokenid: tokenToBuy.id,
+  typeof: { buy: null },
+  amount: { btc: amountToBuy },
+  settings: [{slippage}], // Include slippage protection
+};
+```
+
 <Info>token_trade documentation available <a href="/canister/token-trade" target="_blank">here</a>.</Info>
 
 
@@ -227,27 +290,56 @@ npx tsx index.ts
  Impact: ✅ Low 2.15%
 ✅ Token purchase completed successfully!
 Purchased SampleToken tokens with 0.0001 BTC
+
+
+✅ Token purchase completed successfully with slippage protection!
+Purchased SampleToken tokens with 0.0001 BTC with slippage protection
 ```
 </ResponseExample>
 
-## Trade Configuration Options
+## Understanding Slippage Protection
 
-### Different Trade Types
+### What is Slippage?
+
+Slippage occurs when the actual execution price of a trade differs from the expected price. This typically happens in volatile markets or when trading large amounts that impact the token's price.
+
+### How Slippage Protection Works
+
 ```typescript
-// Buy tokens with BTC
+// Calculate total allowable slippage
+const userSlippage = 0.5; // 5% user-defined tolerance
+const allowedSlippage = (priceImpact ?? 0) + userSlippage;
+
+// Convert to required format for the canister
+const slippageSettings = [
+  [expectedPrice, BigInt(Math.floor(allowedSlippage * 100000))],
+];
+```
+
+### Slippage Calculation Breakdown
+
+1. **Price Impact**: The immediate effect your trade has on the token price
+2. **User Slippage**: Additional tolerance you're willing to accept (e.g., 5%)
+3. **Total Allowable Slippage**: Price impact + user-defined slippage
+4. **Precision**: Converted to basis points (100000 = 100%)
+
+### Trade Types with Slippage
+
+```typescript
+// Buy tokens with slippage protection
 const buyRequest: TradeRequest = {
   tokenid: tokenToBuy.id,
   typeof: { buy: null },
   amount: { btc: amountToBuy },
-  settings: [],
+  settings: [{slippage: slippageSettings}],
 };
 
-// Sell tokens for BTC
+// Sell tokens with slippage protection
 const sellRequest: TradeRequest = {
   tokenid: tokenToSell.id,
   typeof: { sell: null },
   amount: { token: tokenAmount },
-  settings: [],
+  settings: [{slippage: slippageSettings}],
 };
 ```
 
@@ -267,10 +359,24 @@ if ('err' in buyResult) {
 if (!priceImpact) {
   throw new Error('Price impact calculation failed');
 }
+
+// Validate slippage settings
+if (expectedPrice && allowedSlippage !== null) {
+  if (allowedSlippage < 0) {
+    throw new Error('Slippage cannot be negative');
+  }
+  if (allowedSlippage > 1) {
+    console.warn('⚠️ High slippage tolerance set:', allowedSlippage * 100 + '%');
+  }
+}
 ```
 
 <Warning>
 Always calculate and validate price impact before executing trades. High price impact can result in significant slippage and poor trade execution.
+</Warning>
+
+<Warning>
+**Development Environment Note**: After executing trades, deposits, or withdrawals in the development environment, changes may not immediately appear in the <a href="https://dev.odin.fun" target="_blank">Odin Dev UI</a>. This is because the development indexer can sometimes lag behind or be temporarily offline.
 </Warning>
 
 <Check>
