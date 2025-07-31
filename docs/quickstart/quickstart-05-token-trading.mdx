@@ -1,0 +1,280 @@
+---
+title: 'Step 5: Token Trading'
+description: 'Execute your first token purchase with price impact analysis'
+---
+
+In this step, you'll learn how to find tradeable tokens, calculate price impact, and execute token purchases using the Odin platform.
+
+<Info>
+This step builds on [Step 4: Odin canister calls](/quickstart/quickstart-04-canister-calls). Make sure you have successfully deposited BTC before proceeding.
+</Info>
+
+## What You'll Accomplish
+
+By the end of this step, you'll have:
+- ✅ Fetched available tokens from the Odin API
+- ✅ Calculated price impact for trades
+- ✅ Implemented risk assessment logic
+- ✅ Executed your first token purchase
+
+## Understanding Token Trading
+
+### Price Impact and Risk Assessment
+
+Before executing any trade, it's crucial to understand the price impact your transaction will have on the token's price. This guide provides utilities to calculate this impact and assess the risk level.
+
+<Info>Learn more about price impact calculations <a href="/examples/price-impact">here</a></Info>
+### Trade Types and Settings
+
+Odin supports different trade types and allows you to configure various settings including slippage tolerance to protect against unfavorable price movements.
+
+## Update Type Definitions
+
+First, let's update our type definitions to support trading functionality:
+
+```typescript types/odin.ts
+/**
+ * Result of a successful deposit operation
+ */
+export interface DepositResult {
+  /** New balance after deposit */
+  newBalance: bigint;
+}
+
+export type TokenAmount = bigint;
+export type TradeType = { buy: null } | { sell: null }
+export type TradeAmount = { btc: TokenAmount } | { token: TokenAmount }
+
+export interface TradeSettings { 'slippage' : [] | [[TokenAmount, bigint]] }
+
+export interface TradeRequest {
+  tokenid: string;
+  typeof: TradeType;
+  amount: TradeAmount;
+  settings: [] | [TradeSettings];
+}
+
+export type TradeResponse = { 'ok' : null } |
+  { 'err' : string };
+
+/**
+ * Odin Actor Interface
+ */
+export interface OdinActor {
+  /** Deposit tokens to the canister */
+  token_deposit(tokenId: string, amount: bigint): Promise<DepositResult>;
+  /** Execute token trades (buy/sell) */
+  token_trade(tradeRequest: TradeRequest): Promise<TradeResponse>;
+}
+```
+
+## Token Discovery and Trading Logic
+
+Now let's implement the complete trading workflow:
+
+```typescript index.ts
+import { login, prepare } from './core/prepare';
+import { createSampleWallet } from './sample-wallet';
+import { authenticateCallback } from './core/auth-callback';
+import { getActor } from './utils/odin';
+import { Token } from './types/token';
+import { getPriceImpact } from './utils/getPriceImpact';
+import { TradeRequest } from './types/odin';
+
+const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for prod
+
+(async () => {
+  const wallet = await createSampleWallet();
+  const result = await prepare(wallet.address);
+
+  const signature = await wallet.signMessage(result.message);
+
+  const identity = await login({
+    address: wallet.address,
+    message: result.message,
+    signature: signature,
+    publicKey: wallet.publicKey,
+    signatureType: 'Bip322Simple',
+  });
+
+  // Used for API calls.
+  const token = await authenticateCallback(identity);
+
+  const odin = getActor(identity);
+
+  const BITCOIN = {
+    id: 'btc',
+    name: 'Bitcoin',
+    ticker: 'BTC',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg',
+    rune: null,
+    divisibility: 8,
+    decimals: 3,
+  };
+
+  // First, deposit some BTC for trading
+  const btc = 0.001; 
+  const amount = BigInt(btc * 10 ** (BITCOIN.divisibility + BITCOIN.decimals));
+  const newBalance  = await odin.token_deposit(BITCOIN.id, amount);
+
+  console.log({
+    newBalance,
+  });
+
+  // Step 1: Fetch available tokens from the API
+  const response = await fetch(`${ODIN_API_URL}/tokens?page=1&limit=30`);
+  const data: { data: Token[] } = await response.json();
+
+  // Step 2: Find a token that's currently trading
+  const tokenToBuy = data.data.find((token: any) => token.trading);
+  if (!tokenToBuy) {
+    throw new Error('No token to buy found');
+  }
+
+  // Step 3: Calculate price impact for the trade
+  const amountToBuyBtc = 0.0001; 
+  const amountToBuy = BigInt(amountToBuyBtc * 10 ** (BITCOIN.divisibility + BITCOIN.decimals));
+  const priceImpact = getPriceImpact("btc", amountToBuyBtc.toString(), tokenToBuy, true);
+  
+  if (!priceImpact) {
+    throw new Error('Price impact not found');
+  }
+
+  const percentageImpact = priceImpact * 100;
+
+  // Step 4: Risk assessment
+  const warningLevel = percentageImpact > 10 ? "⚠️ High" : 
+                        percentageImpact > 5 ? "⚡ Medium" : 
+                        "✅ Low";
+
+  console.log(` Impact: ${warningLevel} ${percentageImpact.toFixed(2)}%`);
+
+  // Step 5: Execute the trade
+  const buyRequest: TradeRequest = {
+    tokenid: tokenToBuy.id,
+    typeof: { buy: null },
+    amount: { btc: amountToBuy }, 
+    settings: [],
+  };
+
+  const buyResult = await odin.token_trade(buyRequest);
+  if ('err' in buyResult) {
+    throw new Error(buyResult.err);
+  }
+
+  console.log('✅ Token purchase completed successfully!');
+  console.log(`Purchased ${tokenToBuy.name} tokens with ${amountToBuyBtc} BTC`);
+  
+})();
+```
+
+## Key Trading Concepts
+
+### 1. Token Discovery
+```typescript
+// Fetch tokens from the API with pagination
+const response = await fetch(`${ODIN_API_URL}/tokens?page=1&limit=30`);
+const data: { data: Token[] } = await response.json();
+
+// Find tokens that are actively trading
+const tokenToBuy = data.data.find((token: any) => token.trading);
+```
+
+### 2. Price Impact Calculation
+```typescript
+// Calculate how your trade will affect the token price
+const priceImpact = getPriceImpact("btc", amountToBuyBtc.toString(), tokenToBuy, true);
+const percentageImpact = priceImpact * 100;
+```
+
+### 3. Risk Assessment
+```typescript
+// Implement safety checks before executing trades
+
+const warningLevel = percentageImpact > 10 ? "⚠️ High" : 
+                      percentageImpact > 5 ? "⚡ Medium" : 
+                      "✅ Low";
+```
+
+### 4. Trade Execution
+```typescript
+// Create a buy order with proper type structure
+const buyRequest: TradeRequest = {
+  tokenid: tokenToBuy.id,
+  typeof: { buy: null },        // Specify buy operation
+  amount: { btc: amountToBuy }, // Amount in BTC to spend
+  settings: [],                 // Optional trade settings (e.g., slippage)
+};
+
+// Execute the trade
+const buyResult = await odin.token_trade(buyRequest);
+```
+
+<Info>token_trade documentation available <a href="/canister/token-trade" target="_blank">here</a>.</Info>
+
+
+## Testing Your Trading Implementation
+
+Run the complete trading workflow:
+
+```bash
+npx tsx index.ts
+```
+
+<ResponseExample>
+```js Expected Output
+{ newBalance: 10000000n }
+ Impact: ✅ Low 2.15%
+✅ Token purchase completed successfully!
+Purchased SampleToken tokens with 0.0001 BTC
+```
+</ResponseExample>
+
+## Trade Configuration Options
+
+### Different Trade Types
+```typescript
+// Buy tokens with BTC
+const buyRequest: TradeRequest = {
+  tokenid: tokenToBuy.id,
+  typeof: { buy: null },
+  amount: { btc: amountToBuy },
+  settings: [],
+};
+
+// Sell tokens for BTC
+const sellRequest: TradeRequest = {
+  tokenid: tokenToSell.id,
+  typeof: { sell: null },
+  amount: { token: tokenAmount },
+  settings: [],
+};
+```
+
+## Error Handling
+
+Always implement proper error handling for trading operations:
+
+```typescript
+// Check for trade execution errors
+const buyResult = await odin.token_trade(buyRequest);
+if ('err' in buyResult) {
+  console.error('Trade failed:', buyResult.err);
+  throw new Error(buyResult.err);
+}
+
+// Validate price impact before trading
+if (!priceImpact) {
+  throw new Error('Price impact calculation failed');
+}
+```
+
+<Warning>
+Always calculate and validate price impact before executing trades. High price impact can result in significant slippage and poor trade execution.
+</Warning>
+
+<Check>
+Congratulations! You've successfully implemented token trading functionality with price impact analysis and risk assessment.
+</Check>
+
+<Info>The complete code for this guide is available at <a href="https://github.com/Toniq-Labs/odin-docs/tree/main/demo/getting-started" target="_blank">https://github.com/Toniq-Labs/odin-docs/tree/main/demo/getting-started</a>.</Info>

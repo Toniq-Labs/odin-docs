@@ -25,7 +25,8 @@
               "quickstart/quickstart-01-prepare",
               "quickstart/quickstart-02-siwb-login",
               "quickstart/quickstart-03-login-odin",
-              "quickstart/quickstart-04-canister-calls"
+              "quickstart/quickstart-04-canister-calls",
+              "quickstart/quickstart-05-token-trading"
             ]
           },
           

@@ -503,7 +503,7 @@ import { getActor } from './utils/odin';
     decimals: 3,
   };
 
-  const btc = 0.0001; 
+  const btc = 0.001; 
   const amount = BigInt(btc * 10 ** (BITCOIN.divisibility + BITCOIN.decimals));
   const newBalance  = await odin.token_deposit(BITCOIN.id, amount);
 

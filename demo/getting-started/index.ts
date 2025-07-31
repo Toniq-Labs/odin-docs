@@ -2,7 +2,11 @@ import { login, prepare } from './core/prepare';
 import { createSampleWallet } from './sample-wallet';
 import { authenticateCallback } from './core/auth-callback';
 import { getActor } from './utils/odin';
+import { Token } from './types/token';
+import { getPriceImpact } from './utils/getPriceImpact';
+import { TradeRequest } from './types/odin';
 
+const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for prod
 
 (async () => {
   const wallet = await createSampleWallet();
@@ -33,11 +37,55 @@ import { getActor } from './utils/odin';
     decimals: 3,
   };
 
-  const btc = 0.0001; 
+  const btc = 0.001; 
   const amount = BigInt(btc * 10 ** (BITCOIN.divisibility + BITCOIN.decimals));
   const newBalance  = await odin.token_deposit(BITCOIN.id, amount);
 
   console.log({
     newBalance,
   });
+
+  const response = await fetch(`${ODIN_API_URL}/tokens?page=1&limit=30`);
+  const data: { data: Token[] } = await response.json();
+
+  const tokenToBuy = data.data.find((token: any) => token.trading);
+  if (!tokenToBuy) {
+    throw new Error('No token to buy found');
+  }
+
+  const amountToBuyBtc = 0.0001; 
+  const amountToBuy = BigInt(amountToBuyBtc * 10 ** (BITCOIN.divisibility + BITCOIN.decimals));
+  const priceImpact = getPriceImpact("btc", amountToBuyBtc.toString(), tokenToBuy, true);
+  
+  if (!priceImpact) {
+    throw new Error('Price impact not found');
+  }
+
+  const percentageImpact = priceImpact * 100;
+
+  if (percentageImpact > 10) {
+    throw new Error('Price impact is too high');
+  }
+
+  const warningLevel = percentageImpact > 10 ? "⚠️ High" : 
+                        percentageImpact > 5 ? "⚡ Medium" : 
+                        "✅ Low";
+
+  console.log(` Impact: ${warningLevel} ${percentageImpact.toFixed(2)}%`);
+
+  const buyRequest: TradeRequest = {
+    tokenid: tokenToBuy.id,
+    typeof: { buy: null },
+    amount: { btc: amountToBuy }, 
+    settings: [],
+  };
+
+  const buyResult = await odin.token_trade(buyRequest);
+  if ('err' in buyResult) {
+    throw new Error(buyResult.err);
+  }
+
+  console.log('✅ Token purchase completed successfully!');
+  console.log(`Purchased ${tokenToBuy.name} tokens with ${amountToBuyBtc} BTC`);
+  
 })();
