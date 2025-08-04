@@ -4,7 +4,8 @@ import { authenticateCallback } from './core/auth-callback';
 import { getActor } from './utils/odin';
 import { Token } from './types/token';
 import { getPriceImpact } from './utils/getPriceImpact';
-import { TradeRequest, TradeSettings } from './types/odin';
+import { getMinimumReceived } from './utils/getMinimumReceived';
+import { TradeRequest } from './types/odin';
 
 const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for prod
 
@@ -72,6 +73,10 @@ const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for 
                         "✅ Low";
 
   console.log(` Impact: ${warningLevel} ${percentageImpact.toFixed(2)}%`);
+
+  // Calculate minimum amount received for the trade
+  const minimumReceived = getMinimumReceived("btc", amountToBuyBtc.toString(), tokenToBuy, true);
+  console.log(`📊 Minimum tokens to receive: ${minimumReceived.toLocaleString()}`);
 
   const buyRequest: TradeRequest = {
     tokenid: tokenToBuy.id,

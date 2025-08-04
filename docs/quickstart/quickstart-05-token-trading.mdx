@@ -14,6 +14,7 @@ This step builds on [Step 4: Odin canister calls](/quickstart/quickstart-04-cani
 By the end of this step, you'll have:
 - ✅ Fetched available tokens from the Odin API
 - ✅ Calculated price impact for trades
+- ✅ Calculated minimum amounts received for trades
 - ✅ Implemented risk assessment logic
 - ✅ Executed your first token purchase
 - ✅ Implemented slippage protection for safer trading
@@ -81,6 +82,7 @@ import { authenticateCallback } from './core/auth-callback';
 import { getActor } from './utils/odin';
 import { Token } from './types/token';
 import { getPriceImpact } from './utils/getPriceImpact';
+import { getMinimumReceived } from './utils/getMinimumReceived';
 import { TradeRequest, TradeSettings } from './types/odin';
 
 const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for prod
@@ -155,6 +157,10 @@ const ODIN_API_URL = 'https://api.odin.fun/dev'; // https://api.odin.fun/v1 for 
 
   console.log(` Impact: ${warningLevel} ${percentageImpact.toFixed(2)}%`);
 
+  // Step 4.5: Calculate minimum amount received
+  const minimumReceived = getMinimumReceived("btc", amountToBuyBtc.toString(), tokenToBuy, true);
+  console.log(`📊 Minimum tokens to receive: ${minimumReceived.toLocaleString()}`);
+
   // Step 5: Execute the trade
   const buyRequest: TradeRequest = {
     tokenid: tokenToBuy.id,
@@ -221,7 +227,14 @@ const priceImpact = getPriceImpact("btc", amountToBuyBtc.toString(), tokenToBuy,
 const percentageImpact = priceImpact * 100;
 ```
 
-### 3. Risk Assessment
+### 3. Minimum Amount Calculation
+```typescript
+// Calculate the minimum amount of tokens you'll receive
+const minimumReceived = getMinimumReceived("btc", amountToBuyBtc.toString(), tokenToBuy, true);
+console.log(`📊 Minimum tokens to receive: ${minimumReceived.toLocaleString()}`);
+```
+
+### 4. Risk Assessment
 ```typescript
 // Implement safety checks before executing trades
 if (percentageImpact > 10) {
@@ -233,7 +246,7 @@ const warningLevel = percentageImpact > 10 ? "⚠️ High" :
                       "✅ Low";
 ```
 
-### 4. Trade Execution
+### 5. Trade Execution
 ```typescript
 // Create a buy order with proper type structure
 const buyRequest: TradeRequest = {
@@ -247,7 +260,7 @@ const buyRequest: TradeRequest = {
 const buyResult = await odin.token_trade(buyRequest);
 ```
 
-### 5. Slippage Protection
+### 6. Slippage Protection
 ```typescript
 // Configure slippage protection
 const userSlippage = 0.5; // 5% user-defined slippage
@@ -288,6 +301,7 @@ npx tsx index.ts
 ```js Expected Output
 { newBalance: 10000000n }
  Impact: ✅ Low 2.15%
+📊 Minimum tokens to receive: 45,678
 ✅ Token purchase completed successfully!
 Purchased SampleToken tokens with 0.0001 BTC
 
