@@ -2,13 +2,13 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { DEFAULT_IC_HOST, SIWB_CANISTER_ID } from '../constants/canister';
 import { idlFactory as SIWBIdlFactory } from '../canister/ic_siwb_provider.idl';
 import {
+  SignatureType,
   SIWBActor,
   SIWBGetDelegationResponse,
   SIWBLoginResponse,
   SIWBPrepareLoginResponse,
   SIWBSignMessageType,
 } from '../types/siwb';
-import { SignatureType } from '../../sample-sdk/src/types/auth';
 import { Ed25519KeyIdentity, DelegationIdentity } from '@dfinity/identity';
 import { createDelegationChain } from '../utils/auth';
 
