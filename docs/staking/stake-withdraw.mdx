@@ -1,0 +1,132 @@
+---
+title: "Withdraw Tokens"
+description: "Withdraw tokens from the staking canister back to ODIN ledger"
+---
+
+# stake_withdraw
+
+Transfers tokens from your available balance in the staking canister back to the ODIN ledger. Withdrawals execute immediately in a single operation.
+
+## Method Signature
+
+```typescript
+stake_withdraw: ActorMethod<[string, bigint], { Ok: bigint } | { Err: string }>
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenId` | `string` | Yes | The token canister ID to withdraw |
+| `amount` | `bigint` | Yes | Amount of tokens to withdraw |
+
+## Response
+
+```typescript
+type WithdrawResponse = { Ok: bigint } | { Err: string }
+```
+
+- **Success**: `{ Ok: bigint }` - Returns the withdrawn amount on success
+- **Error**: `{ Err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Withdrawal with Balance Check
+
+Always verify sufficient balance before withdrawing:
+
+```typescript
+const tokenId = 'btc';
+const withdrawAmount = 5_000_000n;
+
+// Check available balance first
+const balance = await stakingActor.stake_get_available_balance(tokenId);
+
+if (balance < withdrawAmount) {
+  console.error(`Insufficient balance. Have: ${balance}, Need: ${withdrawAmount}`);
+} else {
+  // Execute withdrawal
+  const result = await stakingActor.stake_withdraw(tokenId, withdrawAmount);
+
+  if ('Ok' in result) {
+    console.log(`Withdrew ${result.Ok} tokens`);
+
+    // Verify new balance
+    const newBalance = await stakingActor.stake_get_available_balance(tokenId);
+    console.log(`Remaining balance: ${newBalance}`);
+  }
+}
+```
+
+## Common Errors
+
+- **"Insufficient balance"** - You don't have enough available balance. Check your balance with `stake_get_available_balance` or [unlock](/staking/stake-unlock) staked tokens first.
+
+- **"Transfer failed"** - The transfer back to ODIN ledger failed. This could be due to ODIN canister issues or network problems.
+
+- **"Invalid token ID"** or **"Invalid amount"** - The token ID or amount parameter is invalid. Amount must be greater than zero.
+
+## Important Notes
+
+### Available Balance Only
+
+You can only withdraw tokens from your **available balance**:
+
+- ✅ Deposited tokens (not yet staked)
+- ✅ Unlocked tokens (after calling `stake_unlock`)
+- ❌ Locked tokens (in active staking positions)
+
+To withdraw locked tokens:
+1. Wait for lock period to expire
+2. Call [stake_unlock](/staking/stake-unlock) to return tokens to available balance
+3. Call `stake_withdraw` to transfer to ODIN ledger
+
+### Immediate Execution
+
+Withdrawals execute immediately:
+- ✅ Single call completes the operation
+- ✅ Tokens transferred instantly to ODIN ledger
+- ✅ No waiting period or delay
+- ✅ Balance updated immediately
+
+### Withdrawal Process
+
+When you call `stake_withdraw`:
+
+1. **Validation**: Checks available balance is sufficient
+2. **Reserve**: Decreases available balance and creates pending withdrawal record
+3. **Transfer**: Transfers tokens from staking canister to ODIN ledger
+4. **Complete**: Removes pending record and returns success with withdrawn amount
+
+If the transfer fails, the available balance is refunded automatically.
+
+### Balance After Withdrawal
+
+```typescript
+// Before
+const before = await stakingActor.stake_get_available_balance('btc');
+console.log('Before:', before); // 10_000_000n
+
+// Withdraw
+await stakingActor.stake_withdraw('btc', 7_000_000n);
+
+// After
+const after = await stakingActor.stake_get_available_balance('btc');
+console.log('After:', after); // 3_000_000n
+```
+
+## What Happens Next
+
+After successful withdrawal:
+
+1. **Tokens transferred**: Moved from staking canister to ODIN ledger
+2. **Available balance decreased**: Reduced by withdrawal amount
+3. **ODIN balance increased**: Tokens now in your ODIN account
+4. **Can deposit again**: Free to [deposit](/staking/stake-deposit) and stake again anytime
+
+## Related Methods
+
+- [stake_deposit](/staking/stake-deposit) - Deposit tokens from ODIN ledger
+- [stake_unlock](/staking/stake-unlock) - Unlock staked tokens to available balance
+- [stake_get_available_balance](/staking/queries#stake_get_available_balance) - Check available balance
+- [stake_lock_tokens](/staking/stake-lock-tokens) - Stake available balance

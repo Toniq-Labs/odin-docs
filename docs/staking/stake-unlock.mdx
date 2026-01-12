@@ -1,0 +1,141 @@
+---
+title: "Unlock Position"
+description: "Unlock an expired staking position and return tokens to available balance"
+---
+
+# stake_unlock
+
+<Info>
+You can only unlock a position **after** the lock period has expired. Early unlocking is not possible.
+</Info>
+
+## Method Signature
+
+```typescript
+stake_unlock: ActorMethod<[string], { Ok: bigint } | { Err: string }>
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenId` | `string` | Yes | The token canister ID of the position to unlock |
+
+## Response
+
+```typescript
+type UnlockResponse = { Ok: bigint } | { Err: string }
+```
+
+- **Success**: `{ Ok: bigint }` - Returns the unlocked amount on success
+- **Error**: `{ Err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Unlock with Expiry Check
+
+Always verify the position has expired before unlocking:
+
+```typescript
+const tokenId = 'btc';
+
+// Get the position
+const position = await stakingActor.stake_get_position(tokenId);
+
+if (!position) {
+  console.error('No position found');
+} else {
+  const now = Date.now();
+  const lockEnd = Number(position.lockEnd);
+
+  if (lockEnd > now) {
+    // Not expired yet
+    const msRemaining = lockEnd - now;
+    const daysRemaining = msRemaining / (24 * 60 * 60 * 1000);
+    console.log(`Lock expires in ${daysRemaining.toFixed(1)} days`);
+    console.log(`Expiry date: ${new Date(lockEnd).toLocaleString()}`);
+  } else {
+    // Expired, can unlock
+    const result = await stakingActor.stake_unlock(tokenId);
+
+    if ('Ok' in result) {
+      console.log(`Unlocked ${result.Ok} tokens`);
+    }
+  }
+}
+```
+
+## Common Errors
+
+- **"Position not found"** - No staking position exists for this token. Use [stake_lock_tokens](/staking/stake-lock-tokens) to create one first.
+
+- **"Lock not expired"** - The lock period hasn't ended yet. You must wait until `lockEnd` timestamp before unlocking.
+
+- **"System not active"** - The staking canister is currently paused. Try again later.
+
+## Important Notes
+
+### No Early Unlock
+
+Once tokens are locked, they **cannot be unlocked early**:
+
+- ✅ Can unlock after `lockEnd` timestamp
+- ❌ Cannot unlock before `lockEnd` timestamp
+- ❌ No emergency unlock option
+
+Plan your lock duration carefully!
+
+### Checking Expiry
+
+To check if a position can be unlocked:
+
+```typescript
+const position = await stakingActor.stake_get_position(tokenId);
+const canUnlock = Date.now() > Number(position.lockEnd);
+```
+
+Or calculate time remaining:
+
+```typescript
+const msRemaining = Math.max(0, Number(position.lockEnd) - Date.now());
+const daysRemaining = msRemaining / (24 * 60 * 60 * 1000);
+
+console.log(`Days until unlock: ${daysRemaining.toFixed(2)}`);
+```
+
+### What Happens After Unlock
+
+1. Staking position is **removed** from storage
+2. Locked amount returns to **available balance**
+3. You can now [withdraw](/staking/stake-withdraw) or [lock again](/staking/stake-lock-tokens)
+
+### Position Status
+
+After unlock, querying the position returns `undefined`:
+
+```typescript
+// Before unlock
+const position = await stakingActor.stake_get_position('btc');
+console.log(position); // { user: '...', stakedAmount: 5000000n, ... }
+
+// After unlock
+await stakingActor.stake_unlock('btc');
+const positionAfter = await stakingActor.stake_get_position('btc');
+console.log(positionAfter); // undefined
+```
+
+## What Happens Next
+
+After successful unlock:
+
+1. **Staking position deleted**: The position record is removed
+2. **Tokens available**: Unlocked amount added to available balance
+3. **Can re-stake**: Create a new position with [stake_lock_tokens](/staking/stake-lock-tokens)
+4. **Can withdraw**: Transfer tokens back to ODIN with [stake_withdraw](/staking/stake-withdraw) (immediate execution)
+
+## Related Methods
+
+- [stake_lock_tokens](/staking/stake-lock-tokens) - Create a new staking position
+- [stake_withdraw](/staking/stake-withdraw) - Withdraw unlocked tokens to ODIN
+- [stake_get_position](/staking/queries#stake_get_position) - Check position status
+- [stake_get_available_balance](/staking/queries#stake_get_available_balance) - Check available balance

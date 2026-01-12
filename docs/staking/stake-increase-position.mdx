@@ -1,0 +1,144 @@
+---
+title: "Increase Position Amount"
+description: "Add more tokens to an existing staking position without changing the lock duration"
+---
+
+# stake_increase_position
+
+Increases the staked amount of an existing position by adding more tokens from your available balance. The lock duration and expiry time remain unchanged.
+
+<Info>
+This method adds tokens to an **existing position only**. To create a new position, use [stake_lock_tokens](/staking/stake-lock-tokens) instead.
+</Info>
+
+## Method Signature
+
+```typescript
+stake_increase_position: ActorMethod<[string, bigint], { Ok: bigint } | { Err: string }>
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenId` | `string` | Yes | The token canister ID of the existing position |
+| `additionalAmount` | `bigint` | Yes | Additional tokens to add to the position (in smallest units) |
+
+## Response
+
+```typescript
+type IncreasePositionResponse = { Ok: bigint } | { Err: string }
+```
+
+- **Success**: `{ Ok: bigint }` - Returns the new total staked amount on success
+- **Error**: `{ Err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Increase with Balance Check
+
+Always verify sufficient balance before increasing:
+
+```typescript
+const tokenId = 'btc';
+const additionalAmount = 1_000_000n;
+
+// Check available balance
+const balance = await stakingActor.stake_get_available_balance(tokenId);
+
+if (balance < additionalAmount) {
+  console.error(`Insufficient balance. Have: ${balance}, Need: ${additionalAmount}`);
+} else {
+  // Get current position
+  const position = await stakingActor.stake_get_position(tokenId);
+
+  if (!position) {
+    console.error('No position found. Use stake_lock_tokens to create one.');
+  } else {
+    console.log('Current staked:', position.stakedAmount);
+
+    // Increase position
+    const result = await stakingActor.stake_increase_position(tokenId, additionalAmount);
+
+    if ('Ok' in result) {
+      console.log('New total staked:', result.Ok);
+      console.log('Added:', additionalAmount);
+
+      // Check remaining balance
+      const newBalance = await stakingActor.stake_get_available_balance(tokenId);
+      console.log('Remaining available:', newBalance);
+    }
+  }
+}
+```
+
+## Common Errors
+
+- **"Position not found"** - No staking position exists for this token. Use [stake_lock_tokens](/staking/stake-lock-tokens) to create a position first.
+
+- **"Insufficient balance"** - You don't have enough available balance. [Deposit](/staking/stake-deposit) more tokens first or reduce the increase amount.
+
+- **"Position expired"** - The position's lock period has already ended. To add tokens to an expired position, first [extend the duration](/staking/stake-increase-duration#combining-duration-extension-and-token-addition) to reactivate it, then add tokens. Alternatively, [unlock](/staking/stake-unlock) the expired position and create a new one with [stake_lock_tokens](/staking/stake-lock-tokens).
+
+- **"System not active"** - The staking canister is currently paused. Try again later.
+
+- **"Amount must be greater than zero"** - The additional amount must be positive.
+
+## Important Notes
+
+### Duration Unchanged
+
+When you increase a position:
+- ✅ `stakedAmount` increases
+- ✅ Available balance decreases
+- ❌ `lockEnd` stays the same (no extension)
+- ❌ `initialDuration` stays the same
+
+To extend the lock duration instead, use [stake_increase_duration](/staking/stake-increase-duration).
+
+### Position Must Be Active
+
+You can only increase **active** positions (not expired):
+
+```typescript
+const position = await stakingActor.stake_get_position(tokenId);
+const isActive = Date.now() < Number(position.lockEnd);
+
+if (isActive) {
+  // Can increase
+  await stakingActor.stake_increase_position(tokenId, amount);
+} else {
+  // Position expired - extend duration first to reactivate
+  // See: stake_increase_duration for combining operations
+  console.error('Position expired. Extend duration first or unlock and create new position.');
+}
+```
+
+### Use Cases
+
+**When to use `stake_increase_position`:**
+- Add more tokens to an existing stake
+
+**When NOT to use:**
+- Creating a new position → Use [stake_lock_tokens](/staking/stake-lock-tokens)
+- Extending lock duration → Use [stake_increase_duration](/staking/stake-increase-duration)
+- Position already expired → [Extend duration](/staking/stake-increase-duration#combining-duration-extension-and-token-addition) first to reactivate
+
+## What Happens Next
+
+After successful increase:
+
+1. **Additional tokens locked**: Tokens move from available balance to position
+2. **Position updated**:
+   - `stakedAmount` = previous amount + additional amount
+   - `lockEnd` remains unchanged
+   - `initialDuration` remains unchanged
+3. **Available balance** decreases by additional amount
+
+## Related Methods
+
+- [stake_lock_tokens](/staking/stake-lock-tokens) - Create a new position
+- [stake_increase_duration](/staking/stake-increase-duration) - Extend lock duration
+- [stake_unlock](/staking/stake-unlock) - Unlock expired position
+- [stake_get_position](/staking/queries#stake_get_position) - Check current position
+- [stake_deposit](/staking/stake-deposit) - Deposit tokens first

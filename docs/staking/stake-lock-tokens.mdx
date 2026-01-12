@@ -1,0 +1,130 @@
+---
+title: "Lock Tokens"
+description: "Create a new staking position by locking tokens for a specified duration"
+---
+
+# stake_lock_tokens
+
+<Info>
+You can only have **one staking position per token**. If you already have a position for a token, use [stake_increase_position](/staking/stake-increase-position) or [stake_increase_duration](/staking/stake-increase-duration) instead.
+</Info>
+
+## Method Signature
+
+```typescript
+stake_lock_tokens: ActorMethod<[string, bigint, bigint], { Ok: bigint } | { Err: string }>
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenId` | `string` | Yes | The token canister ID to stake |
+| `amount` | `bigint` | Yes | Amount of tokens to lock (in smallest units) |
+| `duration` | `bigint` | Yes | Lock duration in **milliseconds** |
+
+## Response
+
+```typescript
+type LockResponse = { Ok: bigint } | { Err: string }
+```
+
+- **Success**: `{ Ok: bigint }` - Returns the locked amount on success
+- **Error**: `{ Err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Complete Flow: Deposit → Lock
+
+```typescript
+// Helper to convert days to milliseconds
+const daysToMs = (days: number) => BigInt(days) * 24n * 60n * 60n * 1000n;
+
+// Get duration constraints from canister
+const constraints = await stakingActor.stake_get_lock_constraints();
+const MIN_LOCK_MS = constraints.minLockDurationMs;  // 1 day (86400000ms)
+const MAX_LOCK_MS = constraints.maxLockDurationMs;  // Configurable by admin
+
+const tokenId = 'btc';
+const depositAmount = 10_000_000n;
+const lockAmount = 7_000_000n;
+const duration = daysToMs(90); // 90 days
+
+// Validate duration
+if (duration < MIN_LOCK_MS) {
+  console.error('Duration must be at least 1 day');
+} else if (duration > MAX_LOCK_MS) {
+  console.error('Duration exceeds maximum allowed (365 days)');
+} else {
+  // Step 1: Approve on ODIN
+  // NOTE: 'btc' uses default subaccount, so from_subaccount can be omitted
+  // For other tokens, include: from_subaccount: [tokenIdToSubaccount(tokenId)]
+  await odinActor.icrc2_approve({
+    spender: { owner: STAKING_CANISTER_ID, subaccount: [] },
+    amount: depositAmount
+  });
+
+  // Step 2: Deposit to staking canister
+  await stakingActor.stake_deposit(tokenId, depositAmount);
+
+  // Step 3: Check available balance
+  const balance = await stakingActor.stake_get_available_balance(tokenId);
+
+  if (balance < lockAmount) {
+    console.error(`Insufficient balance. Have: ${balance}, Need: ${lockAmount}`);
+  } else {
+    // Step 4: Lock tokens
+    const lockResult = await stakingActor.stake_lock_tokens(tokenId, lockAmount, duration);
+
+    if ('Ok' in lockResult) {
+      console.log('Staking position created successfully');
+      console.log(`Locked: ${lockAmount}`);
+
+      // Check remaining balance
+      const newBalance = await stakingActor.stake_get_available_balance(tokenId);
+      console.log(`Remaining available: ${newBalance}`);
+    } else {
+      console.error('Lock failed:', lockResult.Err);
+    }
+  }
+}
+```
+
+## Common Errors
+
+- **"Insufficient balance"** - You don't have enough available balance. [Deposit](/staking/stake-deposit) more tokens first or reduce the lock amount.
+
+- **"Position already exists"** - You already have an active staking position for this token. Use [stake_increase_position](/staking/stake-increase-position) to add more tokens or [stake_increase_duration](/staking/stake-increase-duration) to extend the lock.
+
+- **"Invalid duration"** - The duration is outside the allowed range. Check system configuration for minimum and maximum lock durations.
+
+- **"Duration too short"** - The lock duration is below the minimum required. Increase the duration.
+
+- **"Duration too long"** - The lock duration exceeds the maximum allowed. Reduce the duration.
+
+- **"System not active"** - The staking canister is currently paused. Try again later.
+
+## Important Notes
+
+### Lock Duration
+- Duration must be in **milliseconds**, not seconds or days
+- Once locked, tokens cannot be unlocked early
+
+### One Position Per Token
+You can have multiple positions across different tokens, but only one position per token.
+
+## What Happens Next
+
+After successful lock:
+
+1. A **staking position** is created for the token
+2. Tokens move from available balance to locked state
+3. To unlock: wait until lock expires, then call [stake_unlock](/staking/stake-unlock)
+
+## Related Methods
+
+- [stake_unlock](/staking/stake-unlock) - Unlock expired position
+- [stake_increase_position](/staking/stake-increase-position) - Add more tokens to position
+- [stake_increase_duration](/staking/stake-increase-duration) - Extend lock duration
+- [stake_get_position](/staking/queries#stake_get_position) - Check your position
+- [stake_deposit](/staking/stake-deposit) - Deposit tokens first

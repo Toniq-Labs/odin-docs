@@ -94,6 +94,44 @@
           ]
         }
       ]
+    },
+    {
+      "tab": "Staking",
+      "groups": [
+        {
+          "group": "Overview",
+          "pages": [
+            "staking/overview"
+          ]
+        },
+        {
+          "group": "Deposits & Withdrawals",
+          "pages": [
+            "staking/stake-deposit",
+            "staking/stake-withdraw"
+          ]
+        },
+        {
+          "group": "Staking Operations",
+          "pages": [
+            "staking/stake-lock-tokens",
+            "staking/stake-unlock"
+          ]
+        },
+        {
+          "group": "Position Management",
+          "pages": [
+            "staking/stake-increase-position",
+            "staking/stake-increase-duration"
+          ]
+        },
+        {
+          "group": "Query Methods",
+          "pages": [
+            "staking/queries"
+          ]
+        }
+      ]
     }
   ],
    

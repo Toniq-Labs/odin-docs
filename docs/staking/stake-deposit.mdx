@@ -1,0 +1,112 @@
+---
+title: "Deposit Tokens"
+description: "Deposit tokens from ODIN ledger to the staking canister"
+---
+
+# stake_deposit
+
+Transfers tokens from the ODIN ledger to your available balance in the staking canister. This is the first step before locking tokens for staking.
+
+<Info>
+Before calling `stake_deposit`, you must first approve the staking canister using ICRC-2 `approve` on the ODIN ledger.
+</Info>
+
+## Method Signature
+
+```typescript
+stake_deposit: ActorMethod<[string, bigint], { Ok: bigint } | { Err: string }>
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenId` | `string` | Yes | The token canister ID to deposit |
+| `amount` | `bigint` | Yes | Amount of tokens to deposit (in smallest units) |
+
+## Response
+
+```typescript
+type DepositResponse = { Ok: bigint } | { Err: string }
+```
+
+- **Success**: `{ Ok: bigint }` - Returns the deposited amount on success
+- **Error**: `{ Err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Complete Deposit Flow
+
+This example shows the full flow including ICRC-2 approval:
+
+```typescript
+import { Actor, HttpAgent } from "@dfinity/agent";
+import { idlFactory as OdinIdlFactory } from './odin_canister.idl';
+import { idlFactory as StakingIdlFactory } from './staking_canister.idl';
+
+const ODIN_CANISTER_ID = 'w5cxm-6iaaa-aaaaj-az4jq-cai'; // Development
+const STAKING_CANISTER_ID = 'sfgyi-iyaaa-aaaam-qepyq-cai'; // Development
+
+// Create actors
+const agent = new HttpAgent({ identity, host: 'https://ic0.app' });
+const odinActor = Actor.createActor(OdinIdlFactory, {
+  agent,
+  canisterId: ODIN_CANISTER_ID
+});
+const stakingActor = Actor.createActor(StakingIdlFactory, {
+  agent,
+  canisterId: STAKING_CANISTER_ID
+});
+
+const tokenId = 'btc';
+const depositAmount = 10_000_000n; // 10 million smallest units
+
+// Step 1: Approve the staking canister on ODIN ledger
+// NOTE: 'btc' uses default subaccount (all zeros), so from_subaccount can be omitted
+// For other tokens, include: from_subaccount: [tokenIdToSubaccount(tokenId)]
+const approveResult = await odinActor.icrc2_approve({
+  spender: {
+    owner: STAKING_CANISTER_ID,
+    subaccount: []
+  },
+  amount: depositAmount
+});
+
+// Step 2: Deposit to staking canister
+const depositResult = await stakingActor.stake_deposit(tokenId, depositAmount);
+
+if ('Ok' in depositResult) {
+  console.log('Deposited successfully:', depositResult.Ok);
+} else {
+  console.error('Deposit failed:', depositResult.Err);
+}
+```
+
+## Common Errors
+
+- **"Insufficient allowance"** - The approval amount on ODIN ledger is less than the deposit amount. Call `icrc2_approve` first with sufficient amount.
+
+- **"Transfer failed"** - The transfer from ODIN ledger to staking canister failed. Ensure you have sufficient balance on the ODIN ledger.
+
+- **"System not active"** - The staking canister is currently paused or in maintenance mode. Try again later.
+
+- **"Invalid token"** - The provided token ID is not valid or not supported by the staking canister.
+
+## What Happens Next
+
+After successful deposit:
+
+1. Tokens are transferred from ODIN ledger to the staking canister
+2. Your **available balance** increases by the deposit amount
+3. You can now [lock tokens](/staking/stake-lock-tokens) to create a staking position
+4. Or [withdraw](/staking/stake-withdraw) tokens back to ODIN ledger
+
+<Info>
+Deposited tokens are in your "available balance" - they are not staked yet. Use [stake_lock_tokens](/staking/stake-lock-tokens) to create a staking position.
+</Info>
+
+## Related Methods
+
+- [stake_withdraw](/staking/stake-withdraw) - Withdraw tokens back to ODIN ledger
+- [stake_lock_tokens](/staking/stake-lock-tokens) - Lock tokens to create staking position
+- [stake_get_available_balance](/staking/queries#stake_get_available_balance) - Check your available balance
