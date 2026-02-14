@@ -1,0 +1,104 @@
+---
+title: "token_swap"
+description: "Swap directly between two tokens"
+---
+
+# token_swap
+
+Swap tokens directly from one token to another without manually selling and rebuying. This executes an atomic swap through the platform.
+
+## Method Signature
+
+```typescript
+token_swap: ActorMethod<[SwapRequest], SwapResponse>
+```
+
+## Parameters
+
+### SwapRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenid_from` | `string` | Yes | The token ID to swap from |
+| `tokenid_to` | `string` | Yes | The token ID to swap to |
+| `amount_from` | `TokenAmount` | Yes | Amount of the source token to swap (bigint) |
+| `settings` | `[] \| [TradeSettings]` | No | Optional trade settings including slippage |
+
+### TradeSettings (Optional)
+```typescript
+interface TradeSettings {
+  slippage: [] | [[TokenAmount, bigint]]  // [expectedPrice, tolerance]
+}
+```
+
+Slippage tolerance is expressed as:
+- First value: expected price
+- Second value: allowed deviation as `Math.floor(percentage * 100000)` (e.g., 1% = `1000`)
+
+## Response
+
+### SwapResponse
+```typescript
+type SwapResponse = { ok: null } | { err: string }
+```
+
+- **Success**: `{ ok: null }` - Swap executed successfully
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Basic Token-to-Token Swap
+```typescript
+const swapRequest = {
+  tokenid_from: "2kl9",   // Source token
+  tokenid_to: "3ab8",     // Destination token
+  amount_from: 500_000_000_000n, // Amount of source token
+  settings: [],
+};
+
+const result = await actor.token_swap(swapRequest);
+
+if ("ok" in result) {
+  console.log("Swap completed successfully!");
+} else {
+  console.error("Swap failed:", result.err);
+}
+```
+
+### Swap with Slippage Protection
+```typescript
+const expectedPrice = 150000n; // Expected price ratio
+const slippageTolerance = 0.02; // 2%
+
+const swapRequest = {
+  tokenid_from: "2kl9",
+  tokenid_to: "3ab8",
+  amount_from: 500_000_000_000n,
+  settings: [{
+    slippage: [[expectedPrice, BigInt(Math.floor(slippageTolerance * 100000))]],
+  }],
+};
+
+const result = await actor.token_swap(swapRequest);
+
+if ("ok" in result) {
+  console.log("Swap completed successfully!");
+} else {
+  console.error("Swap failed:", result.err);
+}
+```
+
+## How Swaps Work
+
+A token swap internally:
+1. Sells the source token (`tokenid_from`) for BTC
+2. Uses the BTC to buy the destination token (`tokenid_to`)
+
+This happens atomically in a single canister call, so either both operations succeed or neither does.
+
+## Common Errors
+
+- **Insufficient balance**: Not enough of the source token
+- **Token not found**: One of the token IDs doesn't exist
+- **Slippage exceeded**: Price moved beyond the allowed tolerance
+- **Invalid amount**: Amount is zero or invalid

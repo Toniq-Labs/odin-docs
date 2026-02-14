@@ -1,0 +1,78 @@
+---
+title: "voucher_claim"
+description: "Claim tokens using a voucher code"
+---
+
+# voucher_claim
+
+Claim tokens using a voucher code. Vouchers are distributed for promotions, referrals, and community rewards.
+
+<Note>
+This method calls the **Voucher canister**, which is separate from the main Odin canister. See the [Configuration Reference](/canister/configuration) for canister IDs.
+</Note>
+
+## Method Signature
+
+```typescript
+voucher_claim: ActorMethod<[string], [] | [TokenAmount]>
+```
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | `string` | Yes | The voucher code to claim |
+
+## Response
+
+Returns an optional `TokenAmount`:
+- `[TokenAmount]` - Amount of tokens claimed (bigint)
+- `[]` - Voucher not found or already claimed
+
+## Example Usage
+
+### Basic Voucher Claim
+```typescript
+try {
+  const result = await actor.voucher_claim("VOUCHER-CODE-123");
+
+  if (result.length > 0) {
+    const claimedAmount = result[0];
+    console.log(`Claimed ${claimedAmount} tokens!`);
+  } else {
+    console.log("Voucher not found or already claimed");
+  }
+} catch (error) {
+  console.error("Failed to claim voucher:", error);
+}
+```
+
+### Using the Voucher Canister Directly
+
+If integrating directly with the Voucher canister (not through the Odin wrapper):
+
+```typescript
+import { Actor, HttpAgent } from "@dfinity/agent";
+import { idlFactory } from "./voucher.idl";
+
+const agent = new HttpAgent({ host: "https://ic0.app", identity });
+const voucherActor = Actor.createActor(idlFactory, {
+  agent,
+  canisterId: "7njii-eqaaa-aaaaj-a2gba-cai", // Development
+});
+
+const result = await voucherActor.claim_voucher("VOUCHER-CODE-123");
+
+if ("ok" in result) {
+  console.log(`Claimed: ${result.ok}`);
+} else if ("err" in result) {
+  console.error(`Error: ${result.err}`);
+}
+```
+
+## Common Errors
+
+- **Invalid code**: The voucher code doesn't exist
+- **Already claimed**: The voucher has already been used
+- **Expired**: The voucher code has expired
+- **Not authenticated**: User must be logged in to claim vouchers

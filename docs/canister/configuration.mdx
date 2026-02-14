@@ -1,0 +1,196 @@
+---
+title: "Configuration Reference"
+description: "All canister IDs, API endpoints, and environment configuration"
+---
+
+# Configuration Reference
+
+Complete reference of all canister IDs, API endpoints, and IC host configuration across environments.
+
+## Canister IDs
+
+### Odin Trading Canister (Main)
+
+The primary canister for trading, token creation, liquidity, transfers, and withdrawals.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| Development | `w5cxm-6iaaa-aaaaj-az4jq-cai` |
+| Staging | `z2vm5-gaaaa-aaaaj-azw6q-cai` |
+| Production | `z2vm5-gaaaa-aaaaj-azw6q-cai` |
+
+### SIWB Canister (Authentication)
+
+Sign-In With Bitcoin - handles authentication delegation.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| All | `bcxqa-kqaaa-aaaak-qotba-cai` |
+
+### Voucher Canister
+
+Handles voucher code claiming and rewards.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| Development | `7njii-eqaaa-aaaaj-a2gba-cai` |
+| Staging | `7kio4-jiaaa-aaaaj-a2gbq-cai` |
+
+### FastBTC Canister
+
+Handles BTC and ckBTC deposits and withdrawals.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| All | `ztwhb-qiaaa-aaaaj-azw7a-cai` |
+
+### ckBTC Ledger
+
+ICRC-1 token ledger for ckBTC.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| All | `mxzaz-hqaaa-aaaar-qaada-cai` |
+
+### ckBTC Minter
+
+Mints and burns ckBTC tokens.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| All | `mqygn-kiaaa-aaaar-qaadq-cai` |
+
+### Volt
+
+Volt protocol integration for transfers and authorization.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| All | `aclt4-uaaaa-aaaak-qb4zq-cai` |
+
+### Staking Canister
+
+Token staking with lock periods.
+
+| Environment | Canister ID |
+|-------------|-------------|
+| Development | `sfgyi-iyaaa-aaaam-qepyq-cai` |
+| Production | TBD |
+
+## API Endpoints
+
+| Environment | Base URL |
+|-------------|----------|
+| Development | `https://api.odin.fun/dev` |
+| Staging | `https://api.odin.fun/v1` |
+| Production | `https://api.odin.fun/v1` |
+
+## IC Host
+
+| Network | Host URL |
+|---------|----------|
+| Mainnet | `https://ic0.app` |
+| Local | `http://localhost:4943` |
+
+## Environment Detection
+
+The environment is determined by the hostname of the application:
+
+```typescript
+function getCurrentEnv(): "development" | "staging" | "production" {
+  const hostname = window.location.hostname;
+  if (hostname === "odin.fun") return "production";
+  if (hostname.includes("staging.odin.fun")) return "staging";
+  return "development";
+}
+```
+
+## Setup Example
+
+Complete configuration for initializing canister connections:
+
+```typescript
+import { Actor, HttpAgent } from "@dfinity/agent";
+import { idlFactory as OdinIDL } from "./odin.idl";
+import { idlFactory as SiwbIDL } from "./siwb.idl";
+
+// Configuration per environment
+const config = {
+  development: {
+    odinCanisterId: "w5cxm-6iaaa-aaaaj-az4jq-cai",
+    siwbCanisterId: "bcxqa-kqaaa-aaaak-qotba-cai",
+    fastbtcCanisterId: "ztwhb-qiaaa-aaaaj-azw7a-cai",
+    voucherCanisterId: "7njii-eqaaa-aaaaj-a2gba-cai",
+    apiUrl: "https://api.odin.fun/dev",
+    icHost: "https://ic0.app",
+  },
+  staging: {
+    odinCanisterId: "z2vm5-gaaaa-aaaaj-azw6q-cai",
+    siwbCanisterId: "bcxqa-kqaaa-aaaak-qotba-cai",
+    fastbtcCanisterId: "ztwhb-qiaaa-aaaaj-azw7a-cai",
+    voucherCanisterId: "7kio4-jiaaa-aaaaj-a2gbq-cai",
+    apiUrl: "https://api.odin.fun/v1",
+    icHost: "https://ic0.app",
+  },
+  production: {
+    odinCanisterId: "z2vm5-gaaaa-aaaaj-azw6q-cai",
+    siwbCanisterId: "bcxqa-kqaaa-aaaak-qotba-cai",
+    fastbtcCanisterId: "ztwhb-qiaaa-aaaaj-azw7a-cai",
+    voucherCanisterId: "7kio4-jiaaa-aaaaj-a2gbq-cai",
+    apiUrl: "https://api.odin.fun/v1",
+    icHost: "https://ic0.app",
+  },
+};
+
+// Create agent and actor
+const env = getCurrentEnv();
+const envConfig = config[env];
+
+const agent = new HttpAgent({
+  host: envConfig.icHost,
+  identity: authenticatedIdentity,
+});
+
+const odinActor = Actor.createActor(OdinIDL, {
+  agent,
+  canisterId: envConfig.odinCanisterId,
+});
+```
+
+## Canister Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                     User Wallet                      │
+│              (Bitcoin / NFID / LaserEyes)            │
+└────────────────────┬────────────────────────────────┘
+                     │
+        ┌────────────┼────────────────┐
+        ▼            ▼                ▼
+┌──────────────┐ ┌──────────┐ ┌──────────────┐
+│ SIWB Canister│ │ Odin API │ │ Odin Canister│
+│ (Auth)       │ │ (REST)   │ │ (Trading)    │
+└──────────────┘ └──────────┘ └──────┬───────┘
+                                     │
+                    ┌────────────────┼────────────────┐
+                    ▼                ▼                ▼
+            ┌──────────────┐ ┌──────────┐ ┌──────────────┐
+            │ FastBTC      │ │ Voucher  │ │ Staking      │
+            │ (Deposits)   │ │ (Codes)  │ │ (Lock/Earn)  │
+            └──────┬───────┘ └──────────┘ └──────────────┘
+                   │
+          ┌────────┼────────┐
+          ▼                 ▼
+   ┌──────────────┐ ┌──────────────┐
+   │ ckBTC Ledger │ │ ckBTC Minter │
+   │ (ICRC-1)     │ │              │
+   └──────────────┘ └──────────────┘
+```
+
+## Dependencies
+
+Required packages for canister integration:
+
+```bash
+npm install @dfinity/agent @dfinity/identity @dfinity/principal @dfinity/candid
+```

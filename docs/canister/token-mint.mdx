@@ -1,0 +1,165 @@
+---
+title: "token_mint"
+description: "Create a new token on the Odin platform"
+---
+
+# token_mint
+
+Create a new token on the Odin platform with metadata, optional initial purchase (prebuy), and optional discount code.
+
+## Method Signature
+
+```typescript
+token_mint: ActorMethod<[MintRequest], MintResponse>
+```
+
+## Parameters
+
+### MintRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `metadata` | `Metadata` | Yes | Token metadata (name, ticker, description, image, socials) |
+| `prebuy_amount` | `[] \| [TokenAmount]` | No | Optional BTC amount for initial purchase at creation |
+| `code` | `[] \| [string]` | No | Optional discount code for reduced fees |
+
+### Metadata
+
+Metadata is an array of key-value pairs describing the token:
+
+```typescript
+type Metadata = Array<[string, MetadataValue]>;
+
+type MetadataValue =
+  | { text: string }
+  | { nat: bigint }
+  | { int: bigint }
+  | { bool: boolean }
+  | { principal: Principal }
+  | { blob: Uint8Array }
+  | { hex: string }
+  | { nat8: number };
+```
+
+### Required Metadata Fields
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `name` | `{ text: string }` | Token display name |
+| `ticker` | `{ text: string }` | Token ticker symbol |
+| `description` | `{ text: string }` | Token description |
+| `image` | `{ text: string }` | Token image URL (upload via API first) |
+
+### Optional Metadata Fields
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `twitter` | `{ text: string }` | Twitter/X profile URL |
+| `telegram` | `{ text: string }` | Telegram group URL |
+| `website` | `{ text: string }` | Project website URL |
+
+## Response
+
+### MintResponse
+```typescript
+type MintResponse = { ok: null } | { err: string }
+```
+
+- **Success**: `{ ok: null }` - Token created successfully
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Basic Token Creation
+```typescript
+const mintRequest = {
+  metadata: [
+    ["name", { text: "My Token" }],
+    ["ticker", { text: "MYTKN" }],
+    ["description", { text: "A community-driven token on Odin" }],
+    ["image", { text: "https://your-uploaded-image-url.com/image.png" }],
+    ["twitter", { text: "https://x.com/mytoken" }],
+    ["telegram", { text: "https://t.me/mytoken" }],
+    ["website", { text: "https://mytoken.com" }],
+  ],
+  prebuy_amount: [],
+  code: [],
+};
+
+const result = await actor.token_mint(mintRequest);
+
+if ("ok" in result) {
+  console.log("Token created successfully!");
+} else {
+  console.error("Token creation failed:", result.err);
+}
+```
+
+### Token Creation with Prebuy
+
+Buy tokens at creation time to be the first holder:
+
+```typescript
+const prebuyBtcAmount = 10_000_000n; // 0.1 BTC in satoshis
+
+const mintRequest = {
+  metadata: [
+    ["name", { text: "My Token" }],
+    ["ticker", { text: "MYTKN" }],
+    ["description", { text: "A community-driven token on Odin" }],
+    ["image", { text: "https://your-uploaded-image-url.com/image.png" }],
+    ["twitter", { text: "" }],
+    ["telegram", { text: "" }],
+    ["website", { text: "" }],
+  ],
+  prebuy_amount: [prebuyBtcAmount],
+  code: [],
+};
+
+const result = await actor.token_mint(mintRequest);
+```
+
+### Token Creation with Discount Code
+
+```typescript
+const mintRequest = {
+  metadata: [
+    ["name", { text: "My Token" }],
+    ["ticker", { text: "MYTKN" }],
+    ["description", { text: "A community-driven token on Odin" }],
+    ["image", { text: "https://your-uploaded-image-url.com/image.png" }],
+    ["twitter", { text: "" }],
+    ["telegram", { text: "" }],
+    ["website", { text: "" }],
+  ],
+  prebuy_amount: [],
+  code: ["YOUR_DISCOUNT_CODE"],
+};
+
+const result = await actor.token_mint(mintRequest);
+```
+
+## Image Upload
+
+Before creating a token, upload the image using the REST API:
+
+```typescript
+const formData = new FormData();
+formData.append("file", imageFile);
+
+const uploadResponse = await fetch("https://api.odin.fun/v1/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${jwtToken}` },
+  body: formData,
+});
+
+const { url } = await uploadResponse.json();
+// Use `url` in the image metadata field
+```
+
+## Common Errors
+
+- **Insufficient balance**: Not enough BTC to cover creation fee or prebuy amount
+- **Invalid metadata**: Missing required fields (name, ticker, description, image)
+- **Ticker taken**: The ticker symbol is already in use
+- **Invalid discount code**: The provided code is expired or invalid

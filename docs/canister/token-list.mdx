@@ -1,0 +1,73 @@
+---
+title: "token_list"
+description: "List a Bitcoin rune on the Odin platform"
+---
+
+# token_list
+
+List an existing Bitcoin rune on the Odin platform, making it available for trading. A listing fee is charged in BTC.
+
+## Method Signature
+
+```typescript
+token_list: ActorMethod<[ListRequest], ListResponse>
+```
+
+## Parameters
+
+### ListRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `rune_id` | `string` | Yes | The Bitcoin rune identifier to list |
+
+## Response
+
+### ListResponse
+```typescript
+type ListResponse = { ok: TokenAmount } | { err: string }
+```
+
+- **Success**: `{ ok: TokenAmount }` - Returns the listing fee charged (bigint in BTC smallest unit)
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### List a Rune
+```typescript
+const listRequest = {
+  rune_id: "845623:45", // Rune ID format: block:tx_index
+};
+
+const result = await actor.token_list(listRequest);
+
+if ("ok" in result) {
+  const feeCharged = result.ok;
+  console.log(`Rune listed successfully! Fee charged: ${feeCharged}`);
+} else {
+  console.error("Listing failed:", result.err);
+}
+```
+
+### List with Fee Verification
+```typescript
+// Check BTC balance before listing
+const balance = await actor.getBalance(userAddress, "btc");
+console.log(`Current BTC balance: ${balance}`);
+
+const result = await actor.token_list({ rune_id: "845623:45" });
+
+if ("ok" in result) {
+  const fee = result.ok;
+  console.log(`Listed! Fee: ${fee} (${Number(fee) / 1e8} BTC)`);
+} else {
+  console.error("Listing failed:", result.err);
+}
+```
+
+## Common Errors
+
+- **Insufficient balance**: Not enough BTC to cover the listing fee
+- **Rune not found**: The specified rune ID doesn't exist on Bitcoin
+- **Already listed**: The rune is already listed on the platform
+- **Invalid rune ID**: The rune ID format is incorrect

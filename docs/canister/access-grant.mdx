@@ -1,0 +1,49 @@
+---
+title: "access_grant"
+description: "Grant platform access using an access code"
+---
+
+# access_grant
+
+Grant platform access to the authenticated user using an access code. Access codes may be required during early access or invite-only periods.
+
+## Method Signature
+
+```typescript
+access_grant: ActorMethod<[string], boolean>
+```
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | `string` | Yes | The access code to redeem |
+
+## Response
+
+Returns a `boolean`:
+- `true` - Access granted successfully
+- `false` - Access code is invalid or already used
+
+## Example Usage
+
+### Basic Access Grant
+```typescript
+try {
+  const granted = await actor.access_grant("ACCESS-CODE-123");
+
+  if (granted) {
+    console.log("Access granted! You can now use the platform.");
+  } else {
+    console.log("Invalid or expired access code.");
+  }
+} catch (error) {
+  console.error("Failed to grant access:", error);
+}
+```
+
+## Common Errors
+
+- **Invalid code**: The access code doesn't exist or has expired
+- **Already used**: The code has already been redeemed
+- **Not authenticated**: User must be logged in

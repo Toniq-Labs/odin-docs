@@ -5,25 +5,46 @@ description: "Overview of the Odin smart contract (canister) methods and functio
 
 # Odin Canister
 
-The Odin canister is a smart contract deployed on the Internet Computer that provides core functionality for token trading, transfers, operations tracking, and user claims.
+The Odin canister is a smart contract deployed on the Internet Computer that provides core functionality for token trading, creation, liquidity management, transfers, operations tracking, and user claims.
 
 ## Available Methods
 
 This documentation covers the following canister methods:
 
+### Token Creation
+- **[token_mint](/canister/token-mint)** - Create a new token with metadata, optional prebuy, and discount code
+
 ### Trading
-- **token_trade** - Execute buy/sell trades for tokens
+- **[token_trade](/canister/token-trade)** - Execute buy/sell trades for tokens
+- **[token_swap](/canister/token-swap)** - Swap directly between two tokens
+
+### Liquidity
+- **[token_liquidity](/canister/token-liquidity)** - Add or remove liquidity from AMM pools
+
+### Deposits & Withdrawals
+- **[token_deposit](/canister/token-deposit)** - Deposit BTC to the platform
+- **[token_withdraw](/canister/token-withdraw)** - Withdraw tokens to external addresses
 
 ### Transfers
-- **token_transfer** - Transfer tokens between users
-- **token_withdraw** - Withdraw tokens to external addresses
+- **[token_transfer](/canister/token-transfer)** - Transfer tokens between users
 
-### Operations
-- **getOperations** - Retrieve multiple operations with pagination
-- **getOperation** - Retrieve a specific operation by ID
+### Rune Listing
+- **[token_list](/canister/token-list)** - List a Bitcoin rune on the platform
+
+### Query Methods
+- **[getBalance](/canister/get-balance)** - Query a user's token balance
+- **[getToken](/canister/get-token)** - Query token information and metadata
+- **[getOperations](/canister/get-operations)** - Retrieve multiple operations with pagination
+- **[getOperation](/canister/get-operation)** - Retrieve a specific operation by ID
 
 ### User
-- **user_claim** - Claim tokens for the authenticated user
+- **[user_claim](/canister/user-claim)** - Claim tokens for the authenticated user
+- **[voucher_claim](/canister/voucher-claim)** - Claim tokens using a voucher code
+- **[access_grant](/canister/access-grant)** - Grant platform access with an access code
+
+### Guides
+- **[Error Handling](/canister/error-handling)** - Handle errors, delegation expiration, and recovery
+- **[Configuration Reference](/canister/configuration)** - All canister IDs, API URLs, and environment setup
 
 ## Method Types
 
@@ -31,10 +52,12 @@ All canister methods return results in a standardized format:
 - **Success**: `{ ok: result }` where result contains the expected data
 - **Error**: `{ err: string }` where string contains the error message
 
+Query methods (`getBalance`, `getToken`, `getOperations`, `getOperation`) return values directly without wrapping.
+
 ## Common Types
 
 ### TokenID
-A string identifier for tokens.
+A string identifier for tokens. Use `"btc"` for the primary BTC token, or token-specific IDs like `"2kl9"`.
 
 ### TokenAmount
 A bigint representing token amounts (typically in the smallest unit).
@@ -45,4 +68,14 @@ A bigint representing token amounts (typically in the smallest unit).
 ```
 
 ### Principal
-An Internet Computer principal identifier representing users or canisters. 
+An Internet Computer principal identifier representing users or canisters.
+
+### Canister IDs
+
+| Environment | Canister ID |
+|-------------|-------------|
+| Development | `w5cxm-6iaaa-aaaaj-az4jq-cai` |
+| Staging | `z2vm5-gaaaa-aaaaj-azw6q-cai` |
+| Production | `z2vm5-gaaaa-aaaaj-azw6q-cai` |
+
+See the [Configuration Reference](/canister/configuration) for all canister IDs and environment setup.
