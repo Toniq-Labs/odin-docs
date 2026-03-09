@@ -1,0 +1,74 @@
+---
+title: "token_deposit"
+description: "Deposit BTC to the Odin platform"
+---
+
+# token_deposit
+
+Deposit BTC into the Odin platform. This credits the deposited amount to the caller's on-platform balance.
+
+## Method Signature
+
+```typescript
+token_deposit: ActorMethod<[TokenID, TokenAmount], TokenAmount>
+```
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tokenid` | `string` | Yes | The token ID to deposit (typically `"btc"`) |
+| `amount` | `TokenAmount` | Yes | Amount to deposit (bigint, in smallest unit) |
+
+## Response
+
+Returns a `TokenAmount` (bigint) representing the new balance after the deposit.
+
+```typescript
+type TokenAmount = bigint
+```
+
+## Example Usage
+
+### Basic BTC Deposit
+```typescript
+const tokenId = "btc";
+const amount = 10_000_000n; // 0.1 BTC in satoshis
+
+try {
+  const newBalance = await actor.token_deposit(tokenId, amount);
+  console.log(`Deposit successful. New balance: ${newBalance}`);
+} catch (error) {
+  console.error("Deposit failed:", error);
+}
+```
+
+### Deposit with Balance Verification
+```typescript
+// Check balance before
+const balanceBefore = await actor.getBalance(userAddress, "btc");
+
+// Make deposit
+const amount = 5_000_000n;
+const newBalance = await actor.token_deposit("btc", amount);
+
+console.log(`Balance before: ${balanceBefore}`);
+console.log(`Balance after:  ${newBalance}`);
+```
+
+## Deposit Flow
+
+For production deposits, the typical flow involves multiple steps:
+
+1. **Get a deposit address** from the FastBTC canister for your principal
+2. **Send BTC** to the generated deposit address from your external wallet
+3. **Wait for confirmation** - the platform processes incoming UTXOs automatically
+4. **Funds appear** in your on-platform balance
+
+The `token_deposit` method is used for direct on-chain deposits where BTC is already available to the canister.
+
+## Common Errors
+
+- **Insufficient funds**: The specified amount exceeds available funds
+- **Invalid token**: The token ID is not recognized
+- **Canister not initialized**: Identity or agent not properly set up

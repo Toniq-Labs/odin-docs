@@ -1,0 +1,230 @@
+---
+title: "Extend Lock Duration"
+description: "Extend the lock duration of an existing staking position"
+---
+
+# stake_increase_duration
+
+Extends the lock duration of an existing staking position. The new duration must be longer than the current remaining duration. The staked amount remains unchanged.
+
+**Important**: The new duration is calculated **from the current time** (when you call this method), not from the original `lockStart`. For example, if you set a 90-day duration, your position will expire 90 days from now.
+
+<Info>
+This method extends the **lock duration only**. To add more tokens to your position, use [stake_increase_position](/staking/stake-increase-position) instead.
+</Info>
+
+## Method Signature
+
+```typescript
+stake_increase_duration: ActorMethod<[string, bigint], { Ok: bigint } | { Err: string }>
+```
+
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenId` | `string` | Yes | The token canister ID of the existing position |
+| `newDuration` | `bigint` | Yes | New lock duration in **milliseconds** (must be > remaining duration) |
+
+## Response
+
+```typescript
+type IncreaseDurationResponse = { Ok: bigint } | { Err: string }
+```
+
+- **Success**: `{ Ok: bigint }` - Returns the new duration on success
+- **Error**: `{ Err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Extend with Duration Check
+
+Always verify the new duration is valid before extending:
+
+```typescript
+// Helper to convert days to milliseconds
+const daysToMs = (days: number) => BigInt(days) * 24n * 60n * 60n * 1000n;
+
+// Get duration constraints from canister
+const constraints = await stakingActor.stake_get_lock_constraints();
+const MIN_LOCK_MS = constraints.minLockDurationMs;  // 1 day (86400000ms)
+const MAX_LOCK_MS = constraints.maxLockDurationMs;  // Configurable by admin
+
+const tokenId = 'btc';
+const position = await stakingActor.stake_get_position(tokenId);
+
+if (!position) {
+  console.error('No position found');
+} else {
+  const now = Date.now();
+  const remainingMs = Math.max(0, Number(position.lockEnd) - now);
+  const remainingDays = remainingMs / (24 * 60 * 60 * 1000);
+
+  console.log(`Current remaining duration: ${remainingDays.toFixed(1)} days`);
+
+  // New duration: extend to 180 days from now
+  const newDurationDays = 180;
+  const newDurationMs = daysToMs(newDurationDays);
+
+  // Validate new duration
+  if (newDurationMs <= BigInt(remainingMs)) {
+    console.error(`New duration must be > ${remainingDays.toFixed(1)} days`);
+  } else if (newDurationMs < MIN_LOCK_MS) {
+    console.error('Duration must be at least 1 day');
+  } else if (newDurationMs > MAX_LOCK_MS) {
+    console.error('Duration exceeds maximum allowed (365 days)');
+  } else {
+    const result = await stakingActor.stake_increase_duration(tokenId, newDurationMs);
+
+    if ('Ok' in result) {
+      console.log(`Extended to ${newDurationDays} days from now`);
+
+      const updatedPosition = await stakingActor.stake_get_position(tokenId);
+      const newExpiryDate = new Date(Number(updatedPosition.lockEnd));
+      console.log(`New expiry: ${newExpiryDate.toLocaleString()}`);
+    } else {
+      console.error('Extension failed:', result.Err);
+    }
+  }
+}
+```
+
+## Common Errors
+
+- **"Position not found"** - No staking position exists for this token. Use [stake_lock_tokens](/staking/stake-lock-tokens) to create a position first.
+
+- **"New duration not longer"** - The new duration must be greater than the current remaining duration (0 for expired positions). Increase the duration value.
+
+- **"Duration too long"** - The new duration exceeds the maximum allowed lock duration. Reduce the duration.
+
+## Important Notes
+
+### Duration Requirements
+
+The new duration must be:
+- ✅ **Longer** than current remaining duration (0 for expired positions)
+- ✅ **At least** 1 day (minimum lock duration)
+- ✅ **At most** 365 days (maximum lock duration, configurable by admin)
+- ❌ Cannot be shorter than remaining duration
+- ❌ Cannot be same as current remaining duration
+
+### Calculating New Duration
+
+```typescript
+const position = await stakingActor.stake_get_position(tokenId);
+const now = Date.now();
+
+// Current remaining duration
+const remainingMs = Math.max(0, Number(position.lockEnd) - now);
+const remainingDays = remainingMs / (24 * 60 * 60 * 1000);
+
+console.log(`Currently ${remainingDays.toFixed(1)} days remaining`);
+
+// New duration must be longer
+const newDurationDays = Math.ceil(remainingDays) + 30; // Add 30 days
+const newDurationMs = BigInt(newDurationDays) * 24n * 60n * 60n * 1000n;
+```
+
+### Amount Unchanged
+
+When you extend duration:
+- ✅ `lockEnd` extended (pushed forward)
+- ✅ `remainingDuration` increased
+- ✅ `initialDuration` may be updated
+- ❌ `stakedAmount` stays the same
+
+To add more tokens instead, use [stake_increase_position](/staking/stake-increase-position).
+
+### Extending Expired Positions
+
+You can extend both active AND expired positions:
+
+```typescript
+const position = await stakingActor.stake_get_position(tokenId);
+const now = Date.now();
+const isExpired = now >= Number(position.lockEnd);
+
+if (isExpired) {
+  // Expired position: remainingDuration = 0, any new duration > 0 works
+  const newDuration = 30n * 24n * 60n * 60n * 1000n; // 30 days
+  await stakingActor.stake_increase_duration(tokenId, newDuration);
+  console.log('Extended expired position with new 30-day lock');
+} else {
+  // Active position: new duration must be > remaining duration
+  const remainingMs = Number(position.lockEnd) - now;
+  const newDurationMs = BigInt(remainingMs) + (60n * 24n * 60n * 60n * 1000n); // +60 days
+  await stakingActor.stake_increase_duration(tokenId, newDurationMs);
+  console.log('Extended active position');
+}
+```
+
+### Combining Duration Extension and Token Addition
+
+If you want to both extend the lock duration AND add more tokens to a position, the order of operations depends on whether the position is expired:
+
+**For active positions**: Either order works
+- Extend duration first, then add tokens ✅
+- Add tokens first, then extend duration ✅
+
+**For expired positions**: Must extend duration first
+- Extend duration first, then add tokens ✅
+- Cannot add tokens to expired position ❌
+
+```typescript
+const tokenId = 'btc';
+const additionalAmount = 1_000_000n;
+const newDuration = 90n * 24n * 60n * 60n * 1000n; // 90 days
+
+// Get current position
+const position = await stakingActor.stake_get_position(tokenId);
+const now = Date.now();
+const isExpired = now >= Number(position.lockEnd);
+
+if (isExpired) {
+  // EXPIRED: Must extend duration first to reactivate
+  console.log('Position expired. Extending duration first...');
+
+  // Step 1: Extend duration to reactivate
+  const extendResult = await stakingActor.stake_increase_duration(tokenId, newDuration);
+
+  if ('Ok' in extendResult) {
+    console.log('Duration extended. Position is now active.');
+
+    // Step 2: Now can add tokens
+    const increaseResult = await stakingActor.stake_increase_position(tokenId, additionalAmount);
+
+    if ('Ok' in increaseResult) {
+      console.log('Tokens added successfully');
+      console.log('New total staked:', increaseResult.Ok);
+    }
+  }
+} else {
+  // ACTIVE: Either order works
+  console.log('Position is active. Can use any order.');
+
+  // Option A: Add tokens first, then extend
+  await stakingActor.stake_increase_position(tokenId, additionalAmount);
+  await stakingActor.stake_increase_duration(tokenId, newDuration);
+
+  // Option B: Extend first, then add tokens (also works)
+  // await stakingActor.stake_increase_duration(tokenId, newDuration);
+  // await stakingActor.stake_increase_position(tokenId, additionalAmount);
+}
+```
+
+## What Happens Next
+
+After successful extension:
+
+1. **Lock end updated**: `lockEnd` = `now + newDuration`
+2. **Remaining duration updated**: Reflects new time until expiry
+3. **Staked amount unchanged**: Same number of tokens locked
+
+The position continues with the same staked amount but an extended lock period.
+
+## Related Methods
+
+- [stake_lock_tokens](/staking/stake-lock-tokens) - Create a new position
+- [stake_increase_position](/staking/stake-increase-position) - Add more tokens
+- [stake_unlock](/staking/stake-unlock) - Unlock expired position
+- [stake_get_position](/staking/queries#stake_get_position) - Check current position

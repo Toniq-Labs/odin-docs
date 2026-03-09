@@ -31,7 +31,7 @@ export class CanisterServiceImpl implements CanisterService {
   }
 
   /**
-   * Get or create IC agent with delegation identity
+   * Get or create IC agent withto delegation identity
    */
   private async getAgent(): Promise<HttpAgent> {
     if (!this.agent) {

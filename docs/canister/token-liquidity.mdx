@@ -1,0 +1,110 @@
+---
+title: "token_liquidity"
+description: "Add or remove liquidity for tokens"
+---
+
+# token_liquidity
+
+Add or remove liquidity for a token's AMM pool. Liquidity can only be managed for bonded tokens (tokens that have reached their bonding threshold).
+
+## Method Signature
+
+```typescript
+token_liquidity: ActorMethod<[LiquidityRequest], LiquidityResponse>
+```
+
+## Parameters
+
+### LiquidityRequest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenid` | `string` | Yes | The token identifier |
+| `typeof` | `LiquidityType` | Yes | Operation type: add or remove |
+| `amount` | `TokenAmount` | Yes | BTC amount (for add) or LP token amount (for remove) |
+
+### LiquidityType
+```typescript
+type LiquidityType = { add: null } | { remove: null }
+```
+
+- **add**: Provide BTC liquidity to the token's AMM pool
+- **remove**: Remove LP tokens and receive back BTC and tokens
+
+## Response
+
+### LiquidityResponse
+```typescript
+type LiquidityResponse = { ok: null } | { err: string }
+```
+
+- **Success**: `{ ok: null }` - Liquidity operation completed successfully
+- **Error**: `{ err: string }` - Error message describing what went wrong
+
+## Example Usage
+
+### Add Liquidity
+```typescript
+const addRequest = {
+  tokenid: "2kl9",
+  typeof: { add: null },
+  amount: 5_000_000n, // BTC amount in smallest unit
+};
+
+const result = await actor.token_liquidity(addRequest);
+
+if ("ok" in result) {
+  console.log("Liquidity added successfully!");
+} else {
+  console.error("Failed to add liquidity:", result.err);
+}
+```
+
+### Remove Liquidity
+```typescript
+const removeRequest = {
+  tokenid: "2kl9",
+  typeof: { remove: null },
+  amount: 1_000_000n, // LP token amount to remove
+};
+
+const result = await actor.token_liquidity(removeRequest);
+
+if ("ok" in result) {
+  console.log("Liquidity removed successfully!");
+} else {
+  console.error("Failed to remove liquidity:", result.err);
+}
+```
+
+### Check Liquidity Before Adding
+
+Use the `getToken` query method to inspect the pool state before providing liquidity:
+
+```typescript
+const tokenData = await actor.getToken("2kl9");
+
+if (tokenData.length > 0) {
+  const token = tokenData[0];
+  console.log("Pool BTC:", token.pool.current.btc);
+  console.log("Pool Token:", token.pool.current.token);
+  console.log("LP Supply:", token.lp_supply);
+}
+```
+
+## Key Concepts
+
+### Bonded vs Unbonded Tokens
+- **Unbonded tokens** trade on a bonding curve and do not support liquidity operations
+- **Bonded tokens** have reached their bonding threshold and trade on an AMM pool
+- Liquidity can only be added to or removed from bonded tokens
+
+### LP Tokens
+When you add liquidity, you receive LP (Liquidity Provider) tokens representing your share of the pool. When removing liquidity, you burn LP tokens to receive back your proportional share of BTC and tokens.
+
+## Common Errors
+
+- **Insufficient balance**: Not enough BTC (for add) or LP tokens (for remove)
+- **Token not bonded**: Token has not reached the bonding threshold yet
+- **Token not found**: Specified token ID doesn't exist
+- **Invalid amount**: Amount is zero or exceeds available balance

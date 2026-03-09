@@ -1,0 +1,280 @@
+---
+title: "Query Methods"
+description: "Read-only methods for querying staking balances and positions"
+---
+
+# Query Methods
+
+Query methods provide read-only access to your staking data including balances and positions.
+
+<Info>
+**Production Recommendation**: For production frontends, use the **indexer/API** for query operations instead of direct canister calls. The indexer provides better performance, caching, and filtering capabilities.
+</Info>
+
+## Architecture
+
+```
+Frontend → Indexer/API (Recommended for queries)
+         ↓
+Frontend → Staking Canister (Required for updates only)
+```
+
+## Available Query Methods
+
+### Balance Queries
+
+- **stake_get_available_balance** - Get unlocked balance for a specific token
+- **stake_get_all_available_balances** - Get all unlocked balances
+
+### Position Queries
+
+- **stake_get_position** - Get staking position for a specific token
+- **stake_get_all_positions** - Get all staking positions
+
+### System Queries
+
+- **stake_get_lock_constraints** - Get minimum and maximum lock duration constraints
+
+---
+
+## stake_get_lock_constraints
+
+Get the minimum and maximum lock duration constraints configured in the system.
+
+### Method Signature
+
+```typescript
+stake_get_lock_constraints: ActorMethod<[], {
+  minLockDurationMs: bigint;
+  maxLockDurationMs: bigint;
+}>
+```
+
+### Response
+
+Returns an object with:
+- `minLockDurationMs` - Minimum allowed lock duration in milliseconds (1 day)
+- `maxLockDurationMs` - Maximum allowed lock duration in milliseconds (configurable by admin, default: 365 days)
+
+### Example
+
+```typescript
+const constraints = await stakingActor.stake_get_lock_constraints();
+
+console.log('Min lock:', Number(constraints.minLockDurationMs) / (24 * 60 * 60 * 1000), 'days');
+console.log('Max lock:', Number(constraints.maxLockDurationMs) / (24 * 60 * 60 * 1000), 'days');
+
+// Use for validation
+const duration = 90n * 24n * 60n * 60n * 1000n; // 90 days
+
+if (duration < constraints.minLockDurationMs) {
+  console.error('Duration too short');
+} else if (duration > constraints.maxLockDurationMs) {
+  console.error('Duration too long');
+} else {
+  console.log('Duration is valid');
+}
+```
+
+---
+
+## stake_get_available_balance
+
+Get your available (unlocked) balance for a specific token.
+
+### Method Signature
+
+```typescript
+stake_get_available_balance: ActorMethod<[string], bigint>
+```
+
+### Parameters
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tokenId` | `string` | Token canister ID |
+
+### Response
+
+Returns `bigint` - Available balance (0 if none)
+
+### Example
+
+```typescript
+const tokenId = 'btc';
+const balance = await stakingActor.stake_get_available_balance(tokenId);
+console.log('Available balance:', balance); // 5_000_000n
+```
+
+---
+
+## stake_get_all_available_balances
+
+Get all available balances across all tokens.
+
+### Method Signature
+
+```typescript
+stake_get_all_available_balances: ActorMethod<[], Array<UserAvailableBalance>>
+```
+
+### Response Type
+
+```typescript
+type UserAvailableBalance = {
+  tokenId: string;
+  amount: bigint;
+}
+```
+
+### Example
+
+```typescript
+const balances = await stakingActor.stake_get_all_available_balances();
+
+balances.forEach(b => {
+  console.log(`${b.tokenId}: ${b.amount}`);
+});
+
+// Output (only non-zero balances returned):
+// btc: 5000000
+// test: 2000000
+```
+
+---
+
+## stake_get_position
+
+Get your staking position for a specific token.
+
+### Method Signature
+
+```typescript
+stake_get_position: ActorMethod<[string], StakingPosition | undefined>
+```
+
+### Parameters
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tokenId` | `string` | Token canister ID |
+
+### Response Type
+
+```typescript
+type StakingPosition = {
+  user: string;              // Principal as text
+  tokenId: string;           // Staked token canister ID
+  stakedAmount: bigint;      // Amount of tokens locked
+  lockStart: bigint;         // Lock start timestamp (ms)
+  lockEnd: bigint;           // Lock end timestamp (ms)
+  initialDuration: bigint;   // Original lock duration (ms)
+  remainingDuration: bigint; // Time left when last extended (ms)
+}
+```
+
+Returns `undefined` if no position exists.
+
+### Example
+
+```typescript
+const tokenId = 'btc';
+const position = await stakingActor.stake_get_position(tokenId);
+
+if (position) {
+  console.log('Staked amount:', position.stakedAmount);
+  console.log('Expires:', new Date(Number(position.lockEnd)));
+
+  // Check if unlocked
+  const isUnlocked = Date.now() > Number(position.lockEnd);
+  console.log('Can unlock:', isUnlocked);
+
+  // Days remaining
+  const msRemaining = Math.max(0, Number(position.lockEnd) - Date.now());
+  const daysRemaining = msRemaining / (24 * 60 * 60 * 1000);
+  console.log(`Days left: ${daysRemaining.toFixed(1)}`);
+} else {
+  console.log('No position for this token');
+}
+```
+
+---
+
+## stake_get_all_positions
+
+Get all staking positions owned by the caller.
+
+### Method Signature
+
+```typescript
+stake_get_all_positions: ActorMethod<[], Array<StakingPosition>>
+```
+
+### Response
+
+Returns `Array<StakingPosition>` - Empty array if no positions
+
+### Example
+
+```typescript
+const positions = await stakingActor.stake_get_all_positions();
+
+console.log(`Total positions: ${positions.length}`);
+
+positions.forEach(pos => {
+  const expiryDate = new Date(Number(pos.lockEnd));
+  const msRemaining = Math.max(0, Number(pos.lockEnd) - Date.now());
+  const daysRemaining = msRemaining / (24 * 60 * 60 * 1000);
+  const isUnlocked = Date.now() > Number(pos.lockEnd);
+
+  console.log(`\n${pos.tokenId}:`);
+  console.log(`  Staked: ${pos.stakedAmount}`);
+  console.log(`  Expires: ${expiryDate.toLocaleDateString()}`);
+  console.log(`  Days left: ${daysRemaining.toFixed(1)}`);
+  console.log(`  Status: ${isUnlocked ? 'Unlocked' : 'Locked'}`);
+});
+```
+
+---
+
+## Complete Portfolio Example
+
+Load all user data in a single flow:
+
+```typescript
+async function loadUserPortfolio() {
+  // Run all queries in parallel
+  const [balances, positions] = await Promise.all([
+    stakingActor.stake_get_all_available_balances(),
+    stakingActor.stake_get_all_positions()
+  ]);
+
+  return {
+    balances,  // Available to stake or withdraw
+    positions  // Currently locked
+  };
+}
+
+// Usage
+const portfolio = await loadUserPortfolio();
+
+console.log('Available Balances:');
+portfolio.balances.forEach(b => {
+  console.log(`  ${b.tokenId}: ${b.amount}`);
+});
+
+console.log('\nActive Positions:');
+portfolio.positions.forEach(p => {
+  const daysLeft = Math.max(0, Number(p.lockEnd - BigInt(Date.now()))) / (24 * 60 * 60 * 1000);
+  console.log(`  ${p.tokenId}: ${p.stakedAmount} (${daysLeft.toFixed(1)} days left)`);
+});
+```
+
+---
+
+## Related Documentation
+
+- [Deposits & Withdrawals](/staking/stake-deposit) - Manage token transfers
+- [Staking Operations](/staking/stake-lock-tokens) - Create and unlock positions
+- [Position Management](/staking/stake-increase-position) - Modify existing stakes
+- [Overview](/staking/overview) - Architecture and quick start

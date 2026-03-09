@@ -1,0 +1,156 @@
+---
+title: "Staking Canister Overview"
+description: "Overview of the Odin staking canister for locking tokens"
+---
+
+# Staking Canister
+
+<Warning>
+**Under Development**: The staking canister is currently under active development and is not yet available in production. The canister IDs, method signatures, and behavior documented here may change before the final release. Use the development environment for testing only.
+</Warning>
+
+The Odin staking canister is a smart contract deployed on the Internet Computer that enables users to lock tokens for specified durations.
+
+<Info>
+**Lite Mode Documentation**: This documentation covers the basic staking functionality without reward pools. Users can lock tokens for specified durations, but no rewards are distributed. Reward pool features may be added in future versions.
+</Info>
+
+## Canister IDs
+
+### Development
+```
+sfgyi-iyaaa-aaaam-qepyq-cai
+```
+
+### Production
+```
+TBD (to be set after mainnet deployment)
+```
+
+## Architecture
+
+The staking canister integrates with the ODIN ledger to manage token deposits, withdrawals, and staking positions:
+
+```
+ODIN Ledger ←→ Staking Canister ←→ User
+    │              │                  │
+    │  Transfer    │  Lock/Unlock     │  Frontend
+    │  Approve     │  Query Balance   │  Queries
+```
+
+### Token Lifecycle
+
+1. **Deposit**: Tokens move from ODIN ledger to staking canister (available balance)
+2. **Lock**: Tokens move from available balance to staking position (locked)
+3. **Unlock**: Tokens move from staking position back to available balance (after expiry)
+4. **Withdraw**: Tokens move from available balance back to ODIN ledger
+
+## Available Methods
+
+This documentation covers the following canister methods:
+
+### Deposits & Withdrawals
+- **stake_deposit** - Deposit tokens from ODIN ledger to staking canister
+- **stake_withdraw** - Withdraw tokens from staking canister to ODIN ledger
+
+### Staking Operations
+- **stake_lock_tokens** - Create a new staking position with locked tokens
+- **stake_unlock** - Unlock an expired staking position
+
+### Position Management
+- **stake_increase_position** - Add more tokens to an existing position
+- **stake_increase_duration** - Extend the lock duration of an existing position
+
+### Query Methods
+- **stake_get_available_balance** - Get unlocked token balance
+- **stake_get_all_available_balances** - Get all unlocked balances
+- **stake_get_position** - Get a specific staking position
+- **stake_get_all_positions** - Get all staking positions
+
+<Info>
+In production, query methods should use the indexer/API for better performance. See [Query Methods](/staking/queries) for details.
+</Info>
+
+## Method Types
+
+**Update methods** (deposit, withdraw, lock, unlock, etc.) return results in a standardized format:
+- **Success**: `{ Ok: value }` where value contains the expected data
+- **Error**: `{ Err: string }` where string contains the error message
+
+**Query methods** (stake_get_*) return raw values directly without variant wrapping:
+- `stake_get_available_balance` returns `bigint`
+- `stake_get_position` returns `StakingPosition | undefined`
+- `stake_get_all_*` methods return arrays
+
+## Common Types
+
+### TokenID
+A string identifier for tokens using ODIN's token pointer format.
+
+**Valid formats:**
+- `"btc"` - Primary token (special case)
+- 4-12 character strings using base-34 encoding: `j 2 h 5 n 7 m 4 f 8 q 9 a b d e g k l p r s t u v w x y z 1 3 c 6 i`
+
+**Examples:**
+```typescript
+const tokenId = "btc";   // Primary token ✓
+const tokenId = "test";  // Valid (4 chars) ✓
+const tokenId = "usdc";  // Valid (4 chars) ✓
+```
+
+### TokenAmount
+A bigint representing token amounts.
+
+```typescript
+const amount = 1_000_000n;
+const amount = 10_000_000n;
+```
+
+### Duration
+A bigint representing time duration in milliseconds.
+
+```typescript
+const thirtyDays = 30n * 24n * 60n * 60n * 1000n; // 30 days in ms
+const ninetyDays = 90n * 24n * 60n * 60n * 1000n; // 90 days in ms
+```
+
+### StakingPosition
+Represents a locked token position.
+
+```typescript
+type StakingPosition = {
+  user: string;              // Principal as text
+  tokenId: string;           // Staked token canister ID
+  stakedAmount: bigint;      // Amount of tokens locked
+  lockStart: bigint;         // Lock start timestamp (ms)
+  lockEnd: bigint;           // Lock end timestamp (ms)
+  initialDuration: bigint;   // Original lock duration (ms)
+  remainingDuration: bigint; // Time left when last extended (ms)
+}
+```
+
+## Key Concepts
+
+### Lock Duration
+- All durations are specified in **milliseconds**
+
+### Position Rules
+- **One position per token**: Each user can have only one active position per token
+- **No modifications during lock**: Cannot unlock before expiry
+- **Increase allowed**: Can add more tokens or extend duration while locked
+
+### Withdrawals
+- Withdrawals execute immediately in a single call
+- Transfers tokens from staking canister to ODIN ledger
+- Only available balance can be withdrawn (not locked tokens)
+
+### Balances vs Positions
+- **Available balance**: Unlocked tokens, ready to stake or withdraw
+- **Staking position**: Locked tokens, cannot be withdrawn until unlocked
+
+## Next Steps
+
+- Explore [Deposits & Withdrawals](/staking/stake-deposit) for managing token transfers
+- Learn about [Staking Operations](/staking/stake-lock-tokens) for creating positions
+- Discover [Position Management](/staking/stake-increase-position) for modifying stakes
+- Review [Query Methods](/staking/queries) for reading state (indexer recommended)

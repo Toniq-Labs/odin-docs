@@ -1,0 +1,144 @@
+---
+title: "getToken"
+description: "Query token information and metadata"
+---
+
+# getToken
+
+Retrieve detailed information about a specific token, including its supply, pool state, bonding curve, and rune data. This is a query method that doesn't modify state.
+
+## Method Signature
+
+```typescript
+getToken: ActorMethod<[TokenID], [] | [Token]>
+```
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tokenid` | `string` | Yes | The token identifier |
+
+## Response
+
+Returns an optional `Token` object. An empty array `[]` means the token was not found.
+
+### Token
+```typescript
+interface Token {
+  creator: Principal;           // Token creator's principal
+  lp_supply: TokenAmount;       // Total LP token supply
+  bonded_btc: TokenAmount;      // BTC in bonding curve
+  pool: LiquidityPool;          // AMM pool state
+  rune: [] | [Rune];            // Optional rune data
+  bonding_threshold_reward: TokenAmount;  // Reward at bonding
+  supply: TokenAmount;          // Current circulating supply
+  icrc_canister: [] | [Principal];       // Optional ICRC canister
+  max_supply: TokenAmount;      // Maximum token supply
+  bonding_curve: [] | [BondingCurveSettings];  // Bonding curve params
+  bonding_threshold: TokenAmount;       // BTC needed to bond
+  bonding_threshold_fee: TokenAmount;   // Fee at bonding
+}
+```
+
+### LiquidityPool
+```typescript
+interface LiquidityPool {
+  locked: LiquiditySwap;   // Locked liquidity amounts
+  current: LiquiditySwap;  // Current pool amounts
+}
+
+interface LiquiditySwap {
+  btc: TokenAmount;    // BTC in pool
+  token: TokenAmount;  // Tokens in pool
+}
+```
+
+### Rune
+```typescript
+interface Rune {
+  id: string;       // Bitcoin rune ID
+  ticker: string;   // Rune ticker
+  name: string;     // Rune name
+}
+```
+
+### BondingCurveSettings
+```typescript
+interface BondingCurveSettings {
+  a: number;     // Curve parameter a
+  b: number;     // Curve parameter b
+  c: number;     // Curve parameter c
+  name: string;  // Curve name
+}
+```
+
+## Example Usage
+
+### Basic Token Lookup
+```typescript
+const tokenData = await actor.getToken("2kl9");
+
+if (tokenData.length > 0) {
+  const token = tokenData[0];
+  console.log("Creator:", token.creator.toText());
+  console.log("Supply:", token.supply);
+  console.log("Max Supply:", token.max_supply);
+} else {
+  console.log("Token not found");
+}
+```
+
+### Check if Token is Bonded
+```typescript
+const tokenData = await actor.getToken("2kl9");
+
+if (tokenData.length > 0) {
+  const token = tokenData[0];
+  const isBonded = token.bonded_btc >= token.bonding_threshold;
+  console.log(`Token is ${isBonded ? "bonded (AMM)" : "unbonded (bonding curve)"}`);
+}
+```
+
+### Inspect Pool State
+```typescript
+const tokenData = await actor.getToken("2kl9");
+
+if (tokenData.length > 0) {
+  const token = tokenData[0];
+  const pool = token.pool;
+
+  console.log("Current Pool:");
+  console.log(`  BTC: ${pool.current.btc}`);
+  console.log(`  Token: ${pool.current.token}`);
+
+  console.log("Locked Liquidity:");
+  console.log(`  BTC: ${pool.locked.btc}`);
+  console.log(`  Token: ${pool.locked.token}`);
+
+  console.log(`LP Supply: ${token.lp_supply}`);
+}
+```
+
+### Check Rune Association
+```typescript
+const tokenData = await actor.getToken("2kl9");
+
+if (tokenData.length > 0) {
+  const token = tokenData[0];
+  if (token.rune.length > 0) {
+    const rune = token.rune[0];
+    console.log(`Rune: ${rune.name} (${rune.ticker}) - ID: ${rune.id}`);
+  } else {
+    console.log("No rune associated with this token");
+  }
+}
+```
+
+## Query Method
+
+This is a **query method**, meaning:
+- It doesn't modify canister state
+- It's faster and cheaper to call
+- Results are not certified (for certified data, use update calls)
+- Can be called without authentication

@@ -1,0 +1,234 @@
+---
+title: "Error Handling"
+description: "Handle canister errors, delegation expiration, and common failure modes"
+---
+
+# Error Handling
+
+This guide covers error handling patterns for Odin canister interactions, including response parsing, delegation management, and recovery strategies.
+
+## Response Patterns
+
+The Odin canister uses two different response patterns depending on the method:
+
+### Pattern 1: `ok` / `err` (Odin Canister)
+
+Most Odin canister methods return lowercase variants:
+
+```typescript
+type Response = { ok: T } | { err: string }
+
+// Usage
+const result = await actor.token_trade(request);
+
+if ("ok" in result) {
+  // Success - process result.ok
+} else {
+  // Error - handle result.err
+  console.error("Trade failed:", result.err);
+}
+```
+
+### Pattern 2: `Ok` / `Err` (SIWB Canister)
+
+The SIWB canister returns capitalized variants:
+
+```typescript
+type Response = { Ok: T } | { Err: string }
+
+// Usage
+const result = await siwbActor.siwb_get_delegation(address, publicKey, expiration);
+
+if ("Ok" in result) {
+  // Success
+  const delegation = result.Ok;
+} else {
+  // Error
+  console.error("Delegation failed:", result.Err);
+}
+```
+
+### Pattern 3: Direct Return
+
+Some methods return values directly without wrapping:
+
+```typescript
+// getBalance returns bigint directly
+const balance = await actor.getBalance(address, tokenId);
+
+// user_claim returns bigint directly
+const claimed = await actor.user_claim();
+
+// getToken returns optional (empty array = not found)
+const token = await actor.getToken(tokenId);
+if (token.length === 0) {
+  console.log("Token not found");
+}
+```
+
+## Delegation Expiration
+
+Identity delegations expire after a set period. When a delegation expires, canister calls will fail. You must detect this and prompt the user to re-authenticate.
+
+### Detecting Expired Delegations
+
+```typescript
+function extractMessageFromError(error: unknown): string | null {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return null;
+  }
+}
+
+function isExpiredDelegation(error: unknown): boolean {
+  const message = extractMessageFromError(error);
+  if (!message) return false;
+  return message.includes("delegation has expired")
+    || message.includes("Invalid delegation");
+}
+```
+
+### Handling Expired Delegations
+
+```typescript
+async function safeCanisterCall<T>(
+  call: () => Promise<T>,
+  onExpired: () => void,
+): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (isExpiredDelegation(error)) {
+      onExpired(); // Trigger re-authentication
+      throw new Error("Session expired. Please reconnect your wallet.");
+    }
+    throw error;
+  }
+}
+
+// Usage
+const result = await safeCanisterCall(
+  () => actor.token_trade(request),
+  () => logout(),
+);
+```
+
+## Common Error Messages
+
+### Trading Errors
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `"Insufficient balance"` | Not enough BTC or tokens | Check balance before trading |
+| `"Slippage exceeded"` | Price moved beyond tolerance | Increase slippage or retry |
+| `"Token not found"` | Invalid token ID | Verify token exists |
+| `"Amount too small"` | Trade below minimum | Increase trade amount |
+
+### Transfer Errors
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `"Insufficient balance"` | Not enough tokens | Check balance first |
+| `"Invalid recipient"` | Bad address/principal | Validate address format |
+| `"Transfer blocked"` | Restrictions on token | Check token transfer rules |
+
+### Withdrawal Errors
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `"Minimum amount"` | Below withdrawal minimum | Increase amount |
+| `"Invalid address"` | Bad destination address | Verify address for the protocol |
+| `"Protocol not supported"` | Wrong protocol for token | Use correct protocol |
+
+### Authentication Errors
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `"delegation has expired"` | Session expired | Re-authenticate |
+| `"No identity"` | Not logged in | Connect wallet first |
+| `"Canister not initialized"` | Agent not ready | Wait for identity |
+
+## Error Handling Best Practices
+
+### 1. Always Check Response Variants
+
+```typescript
+// Never assume success
+const result = await actor.token_trade(request);
+
+if ("err" in result) {
+  // Handle error before proceeding
+  throw new Error(result.err);
+}
+
+// Safe to proceed with result.ok
+```
+
+### 2. Wrap Calls with Try/Catch
+
+Canister calls can throw network errors even before returning a response:
+
+```typescript
+try {
+  const result = await actor.token_trade(request);
+
+  if ("err" in result) {
+    // Canister returned an error
+    handleCanisterError(result.err);
+  } else {
+    // Success
+    handleSuccess(result.ok);
+  }
+} catch (error) {
+  // Network error, timeout, or delegation expiration
+  handleNetworkError(error);
+}
+```
+
+### 3. Validate Amounts Before Sending
+
+```typescript
+function validateAmount(amount: bigint): void {
+  if (amount <= 0n) {
+    throw new Error("Amount must be positive");
+  }
+}
+
+// Pre-validate before canister call
+validateAmount(tradeAmount);
+const result = await actor.token_trade(request);
+```
+
+### 4. Handle BigInt Serialization
+
+When logging or transmitting canister responses, BigInt values need special handling:
+
+```typescript
+function sanitizeForLogging(obj: unknown): unknown {
+  if (typeof obj === "bigint") {
+    return obj.toString();
+  }
+  if (obj instanceof Uint8Array) {
+    return Array.from(obj);
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForLogging);
+  }
+  if (obj && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, sanitizeForLogging(v)])
+    );
+  }
+  return obj;
+}
+
+// Usage with error tracking
+console.log(JSON.stringify(sanitizeForLogging(response)));
+```

@@ -64,25 +64,53 @@
         {
           "group": "Overview",
           "pages": [
-            "canister/overview"
+            "canister/overview",
+            "canister/configuration"
+          ]
+        },
+        {
+          "group": "Token Creation",
+          "pages": [
+            "canister/token-mint"
           ]
         },
         {
           "group": "Trading",
           "pages": [
-            "canister/token-trade"
+            "canister/token-trade",
+            "canister/token-swap"
+          ]
+        },
+        {
+          "group": "Liquidity",
+          "pages": [
+            "canister/token-liquidity"
+          ]
+        },
+        {
+          "group": "Deposits & Withdrawals",
+          "pages": [
+            "canister/token-deposit",
+            "canister/token-withdraw"
           ]
         },
         {
           "group": "Transfers",
           "pages": [
-            "canister/token-transfer",
-            "canister/token-withdraw"
+            "canister/token-transfer"
           ]
         },
         {
-          "group": "Operations",
+          "group": "Rune Listing",
           "pages": [
+            "canister/token-list"
+          ]
+        },
+        {
+          "group": "Query Methods",
+          "pages": [
+            "canister/get-balance",
+            "canister/get-token",
             "canister/get-operations",
             "canister/get-operation"
           ]
@@ -90,7 +118,53 @@
         {
           "group": "User",
           "pages": [
-            "canister/user-claim"
+            "canister/user-claim",
+            "canister/voucher-claim",
+            "canister/access-grant"
+          ]
+        },
+        {
+          "group": "Guides",
+          "pages": [
+            "canister/error-handling"
+          ]
+        }
+      ]
+    },
+    {
+      "tab": "Staking",
+      "groups": [
+        {
+          "group": "Overview",
+          "pages": [
+            "staking/overview"
+          ]
+        },
+        {
+          "group": "Deposits & Withdrawals",
+          "pages": [
+            "staking/stake-deposit",
+            "staking/stake-withdraw"
+          ]
+        },
+        {
+          "group": "Staking Operations",
+          "pages": [
+            "staking/stake-lock-tokens",
+            "staking/stake-unlock"
+          ]
+        },
+        {
+          "group": "Position Management",
+          "pages": [
+            "staking/stake-increase-position",
+            "staking/stake-increase-duration"
+          ]
+        },
+        {
+          "group": "Query Methods",
+          "pages": [
+            "staking/queries"
           ]
         }
       ]

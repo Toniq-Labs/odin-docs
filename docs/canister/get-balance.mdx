@@ -1,0 +1,87 @@
+---
+title: "getBalance"
+description: "Query a user's token balance"
+---
+
+# getBalance
+
+Query the balance of a specific token for a given user. This is a query method that doesn't modify state.
+
+## Method Signature
+
+```typescript
+getBalance: ActorMethod<[string, TokenID], TokenAmount>
+```
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `address` | `string` | Yes | The user's address or principal |
+| `tokenid` | `string` | Yes | The token identifier (e.g., `"btc"`, `"2kl9"`) |
+
+## Response
+
+Returns a `TokenAmount` (bigint) representing the user's balance in the token's smallest unit.
+
+```typescript
+type TokenAmount = bigint
+```
+
+## Example Usage
+
+### Check BTC Balance
+```typescript
+const balance = await actor.getBalance(userAddress, "btc");
+console.log(`BTC balance: ${balance} (${Number(balance) / 1e8} BTC)`);
+```
+
+### Check Token Balance
+```typescript
+const tokenId = "2kl9";
+const balance = await actor.getBalance(userAddress, tokenId);
+console.log(`Token balance: ${balance}`);
+```
+
+### Check Multiple Token Balances
+```typescript
+const tokenIds = ["btc", "2kl9", "3ab8"];
+
+const balances = await Promise.all(
+  tokenIds.map(async (id) => ({
+    tokenId: id,
+    balance: await actor.getBalance(userAddress, id),
+  }))
+);
+
+balances.forEach(({ tokenId, balance }) => {
+  console.log(`${tokenId}: ${balance}`);
+});
+```
+
+## Amount Conversion
+
+Token amounts are returned in the smallest unit. To convert to a human-readable format:
+
+```typescript
+const rawBalance = await actor.getBalance(userAddress, tokenId);
+
+// For BTC (8 decimals):
+const btcAmount = Number(rawBalance) / 1e8;
+
+// For tokens with custom divisibility/decimals:
+// Use the token's divisibility + decimals from getToken()
+const tokenInfo = await actor.getToken(tokenId);
+if (tokenInfo.length > 0) {
+  // Raw amount includes both divisibility and decimal precision
+  const displayAmount = Number(rawBalance) / (10 ** 8); // Adjust based on token
+}
+```
+
+## Query Method
+
+This is a **query method**, meaning:
+- It doesn't modify canister state
+- It's faster and cheaper to call
+- Results are not certified (for certified data, use update calls)
+- Can be called without authentication
